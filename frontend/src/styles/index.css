@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    @apply bg-gray-50 text-gray-800 font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .section-tag {
+    @apply text-xs uppercase font-semibold tracking-wider text-accent;
+  }
+
+  .page-title {
+    @apply text-4xl font-bold text-primary;
+  }
+
+  .card-shadow {
+    @apply shadow-card hover:shadow-card-hover transition-shadow duration-200;
+  }
+}

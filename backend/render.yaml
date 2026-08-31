@@ -1,0 +1,55 @@
+# render.yaml — Render.com Infrastructure as Code
+#
+# How to deploy:
+#   1. Push this repo to GitHub
+#   2. Go to https://render.com → New → Web Service
+#   3. Connect your GitHub repo
+#   4. Render auto-detects this file and pre-fills all settings
+#   5. Add the environment variables listed below in the Render dashboard
+#   6. Click "Create Web Service"
+#
+# Free tier limitations:
+#   - 512 MB RAM  (enough for one model at a time; both models = ~530 MB, tight)
+#   - Sleeps after 15 min inactivity → first request takes ~30 s to wake
+#   - Upgrade to Starter ($7/mo) for 1 GB RAM + no sleep
+
+services:
+  - type: web
+    name: ai-detector-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon            # closest to Philippines; change to singapore if latency matters
+    plan: free                # change to "starter" for always-on + 1 GB RAM
+
+    # Health check — Render pings this to decide if the deploy succeeded
+    healthCheckPath: /health
+
+    # Scale to 1 instance (free tier only supports 1)
+    numInstances: 1
+
+    # Environment variables — set values in Render dashboard, NOT here
+    # (never commit secrets to git)
+    envVars:
+      - key: FIREBASE_PROJECT_ID
+        value: capstone-project-96d2e
+
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false           # set manually in Render dashboard
+
+      - key: ALLOWED_ORIGINS
+        value: https://capstone-project-96d2e.web.app,https://capstone-project-96d2e.firebaseapp.com
+
+      - key: HF_CACHE_DIR
+        value: /app/.cache/huggingface
+
+      - key: TRANSFORMERS_CACHE
+        value: /app/.cache/huggingface
+
+      - key: MAX_IMAGE_SIZE_MB
+        value: "50"
+
+      - key: MAX_VIDEO_SIZE_MB
+        value: "500"
+
+      - key: SKIP_AUTH
+        value: "false"        # set to "true" only for local testing without Firebase
