@@ -45,20 +45,20 @@ COPY --from=builder /install/packages /usr/local
 COPY . .
 
 # ── Pre-bake HuggingFace model cache ─────────────────────────────────────────
-# Downloads models at IMAGE BUILD TIME so the container starts instantly
-# on Render.com without a cold-start download (330 MB + 200 MB).
-# Remove this RUN block if you want faster image builds during development.
+# Downloads models at IMAGE BUILD TIME so the container starts instantly.
+# Only downloads public models (no HF token needed).
 ENV HF_CACHE_DIR=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
 
 RUN python -c "\
 import os; \
 os.makedirs('/app/.cache/huggingface', exist_ok=True); \
-from transformers import pipeline; \
-print('Downloading image model…'); \
-pipeline('image-classification', model='dima806/ai_vs_human_generated_image_detection', model_kwargs={'cache_dir': '/app/.cache/huggingface'}); \
-print('Downloading video model…'); \
-pipeline('video-classification', model='Naman712/Deep-fake-detection', model_kwargs={'cache_dir': '/app/.cache/huggingface'}); \
+from transformers import AutoImageProcessor, SiglipForImageClassification, pipeline; \
+print('Downloading image model (SigLIP)...'); \
+AutoImageProcessor.from_pretrained('prithivMLmods/deepfake-detector-model-v1', cache_dir='/app/.cache/huggingface'); \
+SiglipForImageClassification.from_pretrained('prithivMLmods/deepfake-detector-model-v1', cache_dir='/app/.cache/huggingface'); \
+print('Downloading video model (VideoMAE)...'); \
+pipeline('video-classification', model='eftt/VideoMae-ffc23-deepfake-detector', model_kwargs={'cache_dir': '/app/.cache/huggingface'}); \
 print('Models cached successfully.'); \
 "
 
