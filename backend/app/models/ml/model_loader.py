@@ -69,8 +69,6 @@ def load_models() -> None:
         _image_model = SiglipForImageClassification.from_pretrained(
             _IMAGE_MODEL,
             cache_dir=_HF_CACHE,
-            torch_dtype=torch.float16 if _DEVICE == "cuda" else torch.float32,
-            low_cpu_mem_usage=True,
         ).to(_DEVICE).eval()
         logger.info("✓ Image classifier loaded.")
     except Exception as e:
