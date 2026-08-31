@@ -44,23 +44,9 @@ COPY --from=builder /install/packages /usr/local
 # Copy application code
 COPY . .
 
-# ── Pre-bake HuggingFace model cache ─────────────────────────────────────────
-# Downloads models at IMAGE BUILD TIME so the container starts instantly.
-# Only downloads public models (no HF token needed).
+# ── Environment variables ─────────────────────────────────────────────────────
 ENV HF_CACHE_DIR=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
-
-RUN python -c "\
-import os; \
-os.makedirs('/app/.cache/huggingface', exist_ok=True); \
-from transformers import AutoImageProcessor, SiglipForImageClassification, pipeline; \
-print('Downloading image model (SigLIP)...'); \
-AutoImageProcessor.from_pretrained('prithivMLmods/deepfake-detector-model-v1', cache_dir='/app/.cache/huggingface'); \
-SiglipForImageClassification.from_pretrained('prithivMLmods/deepfake-detector-model-v1', cache_dir='/app/.cache/huggingface'); \
-print('Downloading video model (VideoMAE)...'); \
-pipeline('video-classification', model='eftt/VideoMae-ffc23-deepfake-detector', model_kwargs={'cache_dir': '/app/.cache/huggingface'}); \
-print('Models cached successfully.'); \
-"
 
 # Render.com injects PORT env var; default to 8000 for local runs
 ENV PORT=8000

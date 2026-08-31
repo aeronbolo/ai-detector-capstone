@@ -53,6 +53,12 @@ _VIDEO_MODEL = "eftt/VideoMae-ffc23-deepfake-detector"
 def load_models() -> None:
     global _image_processor, _image_model, _video_classifier, _loaded_video_model
 
+    # Check available memory — on Render free tier (512 MB) we load image only
+    import psutil
+    available_mb = psutil.virtual_memory().available / (1024 * 1024)
+    low_memory   = available_mb < 600
+    logger.info(f"Available RAM: {available_mb:.0f} MB — low_memory={low_memory}")
+
     # ── Image model ───────────────────────────────────────────────────────────
     try:
         logger.info(f"Loading image classifier ({_IMAGE_MODEL})…")
@@ -63,21 +69,30 @@ def load_models() -> None:
         _image_model = SiglipForImageClassification.from_pretrained(
             _IMAGE_MODEL,
             cache_dir=_HF_CACHE,
+            torch_dtype=torch.float16 if _DEVICE == "cuda" else torch.float32,
+            low_cpu_mem_usage=True,
         ).to(_DEVICE).eval()
         logger.info("✓ Image classifier loaded.")
     except Exception as e:
         logger.error(f"Failed to load image model: {e}")
         _load_errors["image"] = str(e)
 
-    # ── Video model ───────────────────────────────────────────────────────────
-    hf_token = os.getenv("HF_TOKEN")  # optional — not required for these models
+    # ── Video model — skip on low memory (free tier) ──────────────────────────
+    if low_memory:
+        logger.warning(
+            "Low memory detected — skipping video model preload. "
+            "Video requests will use TruthScan API fallback."
+        )
+        _load_errors["video"] = "Skipped on low-memory instance"
+        return
+
+    hf_token = os.getenv("HF_TOKEN")
 
     video_models_to_try = [
-        _VIDEO_MODEL,                              # primary — VideoMAE deepfake 2025
-        "MCG-NJU/videomae-base-finetuned-kinetics", # last-resort fallback
+        _VIDEO_MODEL,
+        "MCG-NJU/videomae-base-finetuned-kinetics",
     ]
 
-    # Allow override via env var
     if os.getenv("HF_VIDEO_MODEL"):
         video_models_to_try = [os.getenv("HF_VIDEO_MODEL")]
 
