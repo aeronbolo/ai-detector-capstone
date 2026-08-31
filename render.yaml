@@ -1,10 +1,10 @@
-# render.yaml — Render.com deployment config (repo root)
+# render.yaml — Lightweight deployment (TruthScan API only, no PyTorch)
 
 services:
   - type: web
     name: ai-detector-backend
     runtime: docker
-    dockerfilePath: ./backend/Dockerfile
+    dockerfilePath: ./backend/Dockerfile.lite
     dockerContext: ./backend
     region: oregon
     plan: free
@@ -19,14 +19,14 @@ services:
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
 
+      - key: TRUTHSCAN_API_KEY
+        sync: false
+
+      - key: LIGHTWEIGHT_MODE
+        value: "true"
+
       - key: ALLOWED_ORIGINS
         value: https://capstone-project-96d2e.web.app,https://capstone-project-96d2e.firebaseapp.com,http://localhost:5174
-
-      - key: HF_CACHE_DIR
-        value: /app/.cache/huggingface
-
-      - key: TRANSFORMERS_CACHE
-        value: /app/.cache/huggingface
 
       - key: MAX_IMAGE_SIZE_MB
         value: "50"

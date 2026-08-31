@@ -24,23 +24,38 @@ VIDEO MODEL  — eftt/VideoMae-ffc23-deepfake-detector
 import logging
 import os
 
-import torch
-from PIL import Image
-from transformers import AutoImageProcessor, SiglipForImageClassification, pipeline
+logger = logging.getLogger(__name__)
+
+# ── Lightweight mode check ────────────────────────────────────────────────────
+# When LIGHTWEIGHT_MODE=true, skip all PyTorch/transformers imports entirely.
+# TruthScan API is the primary engine — local models are fallback only.
+_LIGHTWEIGHT = os.getenv("LIGHTWEIGHT_MODE", "false").lower() == "true"
+
+if _LIGHTWEIGHT:
+    logger.info("LIGHTWEIGHT_MODE=true — skipping PyTorch model loading. TruthScan API only.")
+    torch = None
+    Image = None
+    AutoImageProcessor = None
+    SiglipForImageClassification = None
+    pipeline = None
+else:
+    import torch
+    from PIL import Image
+    from transformers import AutoImageProcessor, SiglipForImageClassification, pipeline
 
 logger = logging.getLogger(__name__)
 
 # ── Singletons ────────────────────────────────────────────────────────────────
-_image_processor = None
-_image_model     = None
+_image_processor  = None
+_image_model      = None
 _video_classifier = None
 _loaded_video_model: str | None = None
 _load_errors: dict[str, str] = {}
 
 # ── Config ────────────────────────────────────────────────────────────────────
-_HF_CACHE    = os.getenv("HF_CACHE_DIR", None)
-_DEVICE      = "cuda" if torch.cuda.is_available() else "cpu"
-_DEVICE_INT  = 0 if torch.cuda.is_available() else -1
+_HF_CACHE   = os.getenv("HF_CACHE_DIR", None)
+_DEVICE     = "cpu" if _LIGHTWEIGHT else ("cuda" if (torch and torch.cuda.is_available()) else "cpu")
+_DEVICE_INT = -1  if _LIGHTWEIGHT else (0 if (torch and torch.cuda.is_available()) else -1)
 
 _IMAGE_MODEL = "prithivMLmods/deepfake-detector-model-v1"
 _VIDEO_MODEL = "eftt/VideoMae-ffc23-deepfake-detector"
@@ -53,7 +68,14 @@ _VIDEO_MODEL = "eftt/VideoMae-ffc23-deepfake-detector"
 def load_models() -> None:
     global _image_processor, _image_model, _video_classifier, _loaded_video_model
 
-    # Check available memory — on Render free tier (512 MB) we load image only
+    # ── Skip entirely in lightweight mode ─────────────────────────────────────
+    if _LIGHTWEIGHT:
+        logger.info("Lightweight mode — no ML models loaded. Using TruthScan API only.")
+        _load_errors["image"] = "Skipped — LIGHTWEIGHT_MODE=true"
+        _load_errors["video"] = "Skipped — LIGHTWEIGHT_MODE=true"
+        return
+
+    # Check available memory — skip video model on low-memory instances
     import psutil
     available_mb = psutil.virtual_memory().available / (1024 * 1024)
     low_memory   = available_mb < 600
@@ -75,22 +97,14 @@ def load_models() -> None:
         logger.error(f"Failed to load image model: {e}")
         _load_errors["image"] = str(e)
 
-    # ── Video model — skip on low memory (free tier) ──────────────────────────
+    # ── Video model — skip on low memory ──────────────────────────────────────
     if low_memory:
-        logger.warning(
-            "Low memory detected — skipping video model preload. "
-            "Video requests will use TruthScan API fallback."
-        )
+        logger.warning("Low memory — skipping video model. Using TruthScan API fallback.")
         _load_errors["video"] = "Skipped on low-memory instance"
         return
 
     hf_token = os.getenv("HF_TOKEN")
-
-    video_models_to_try = [
-        _VIDEO_MODEL,
-        "MCG-NJU/videomae-base-finetuned-kinetics",
-    ]
-
+    video_models_to_try = [_VIDEO_MODEL, "MCG-NJU/videomae-base-finetuned-kinetics"]
     if os.getenv("HF_VIDEO_MODEL"):
         video_models_to_try = [os.getenv("HF_VIDEO_MODEL")]
 
@@ -118,9 +132,13 @@ def load_models() -> None:
 
 def predict_image(image_path: str) -> dict:
     """
-    Run SigLIP v2 deepfake detection on an image.
+    Run SigLIP deepfake detection on an image.
     Returns { label, confidence, raw_label }
+    Raises RuntimeError if model not loaded (lightweight mode or load failure).
     """
+    if _LIGHTWEIGHT:
+        raise RuntimeError("Image model not available in lightweight mode. TruthScan API required.")
+
     if _image_model is None or _image_processor is None:
         raise RuntimeError("Image model is not loaded.")
 
@@ -132,8 +150,6 @@ def predict_image(image_path: str) -> dict:
         outputs = _image_model(**inputs)
         probs   = torch.nn.functional.softmax(outputs.logits, dim=1).squeeze().tolist()
 
-    # SigLIP v2 label mapping: 0 = Fake, 1 = Real
-    # (same as v1 — confirmed from model card id2label)
     fake_prob = probs[0]
     real_prob = probs[1]
 
@@ -161,6 +177,7 @@ def get_loaded_video_model_id() -> str | None:
 
 def get_model_status() -> dict:
     return {
+        "lightweight_mode":    _LIGHTWEIGHT,
         "image_model_loaded":  _image_model is not None,
         "video_model_loaded":  _video_classifier is not None,
         "image_model":         get_loaded_image_model_id() or _IMAGE_MODEL,

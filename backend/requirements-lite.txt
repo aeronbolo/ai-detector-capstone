@@ -1,0 +1,30 @@
+# requirements-lite.txt
+# Lightweight deployment — TruthScan API only, no PyTorch/transformers.
+# ~100 MB RAM at runtime vs ~1.5 GB for full ML stack.
+# Used by Dockerfile.lite for free-tier deployments.
+
+# FastAPI core
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+
+# Pydantic settings
+pydantic==2.7.1
+pydantic-settings==2.2.1
+
+# Firebase Admin SDK
+firebase-admin==6.5.0
+
+# HTTP client (TruthScan API calls)
+httpx==0.27.0
+
+# Image handling (basic validation only — no ML)
+Pillow==10.3.0
+numpy==1.26.4
+
+# Video processing (basic validation only — no ML)
+opencv-python-headless==4.9.0.80
+
+# Utilities
+python-dotenv==1.0.1
+psutil==5.9.8
