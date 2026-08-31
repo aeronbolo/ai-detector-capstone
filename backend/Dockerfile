@@ -1,13 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 — Builder
-# Install Python dependencies into a clean layer so they can be cached
-# separately from the application code.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM python:3.11-slim AS builder
 
 WORKDIR /install
 
-# System libs required by OpenCV, python-magic, and PyTorch
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
@@ -28,7 +25,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy system libs installed in builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
@@ -47,10 +43,12 @@ COPY . .
 # ── Environment variables ─────────────────────────────────────────────────────
 ENV HF_CACHE_DIR=/app/.cache/huggingface
 ENV TRANSFORMERS_CACHE=/app/.cache/huggingface
+ENV HF_HOME=/app/.cache/huggingface
 
-# Render.com injects PORT env var; default to 8000 for local runs
-ENV PORT=8000
-EXPOSE 8000
+# HuggingFace Spaces uses port 7860
+# Render uses PORT env var (defaults to 8000)
+# Support both by checking PORT env var first
+ENV PORT=7860
+EXPOSE 7860
 
-# Run with uvicorn — single worker is fine for Render free tier (512 MB RAM)
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --workers 1"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]
