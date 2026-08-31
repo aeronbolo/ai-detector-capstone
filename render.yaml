@@ -1,0 +1,39 @@
+# render.yaml — Render.com deployment config (repo root)
+# Render reads this file automatically when you connect the repo.
+
+services:
+  - type: web
+    name: ai-detector-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    region: oregon
+    plan: free
+
+    healthCheckPath: /health
+    numInstances: 1
+
+    envVars:
+      - key: FIREBASE_PROJECT_ID
+        value: capstone-project-96d2e
+
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false   # set manually in Render dashboard — paste minified JSON
+
+      - key: ALLOWED_ORIGINS
+        value: https://capstone-project-96d2e.web.app,https://capstone-project-96d2e.firebaseapp.com,http://localhost:5174
+
+      - key: HF_CACHE_DIR
+        value: /app/.cache/huggingface
+
+      - key: TRANSFORMERS_CACHE
+        value: /app/.cache/huggingface
+
+      - key: MAX_IMAGE_SIZE_MB
+        value: "50"
+
+      - key: MAX_VIDEO_SIZE_MB
+        value: "500"
+
+      - key: SKIP_AUTH
+        value: "false"
