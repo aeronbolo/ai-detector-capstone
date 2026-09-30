@@ -37,7 +37,7 @@ _VIDEO_TIMEOUT  = 180        # max seconds to wait for video result
 
 # Read API key dynamically at call time so .env changes are picked up on reload
 def _get_api_key() -> str:
-    return os.getenv("TRUTHSCAN_API_KEY", "")
+    return os.getenv("TRUTHSCAN_API_KEY", "").strip()  # strip whitespace/newlines
 
 def truthscan_available() -> bool:
     return bool(_get_api_key())
