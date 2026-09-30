@@ -23,19 +23,34 @@ import apiClient from '@/lib/apiClient'
  */
 export async function runImageDetection({ formData, detectionId }) {
   try {
+    console.log('[detection] Sending to:', import.meta.env.VITE_FASTAPI_BASE_URL, '→ POST /detect/image')
     const { data } = await apiClient.post('/detect/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    console.log('[detection] TruthScan result:', data)
     return data
   } catch (err) {
-    // Only fall back to simulation when backend is completely unreachable
+    console.error('[detection] API error status:', err.status, 'message:', err.message)
     if (err.status === 0 || err.status === undefined || err.status === null) {
-      console.warn('FastAPI unreachable — using simulated detection result.')
+      console.warn('[detection] FastAPI unreachable — using simulated detection result.')
       return simulateResult(detectionId, 'image')
     }
-    // For all other errors (401, 422, 500 etc) — surface the real error
-    console.error('Detection API error:', err)
     throw new Error(err.message || 'Image detection failed. Please try again.')
+  }
+}
+
+export async function runImageDetectionFromUrl({ url, detectionId }) {
+  try {
+    console.log('[detection] URL scan → POST /detect/image-url')
+    const { data } = await apiClient.post('/detect/image-url', { url, detection_id: detectionId })
+    console.log('[detection] URL result:', data)
+    return data
+  } catch (err) {
+    console.error('[detection] URL API error:', err.status, err.message)
+    if (err.status === 0 || err.status === undefined || err.status === null) {
+      return simulateResult(detectionId, 'image')
+    }
+    throw new Error(err.message || 'Image URL detection failed. Please try again.')
   }
 }
 
@@ -49,7 +64,7 @@ export async function runVideoDetection({ formData, detectionId }) {
   try {
     const { data } = await apiClient.post('/detect/video', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 180000, // 3 min for large videos
+      timeout: 180000,
     })
     return data
   } catch (err) {
@@ -58,6 +73,23 @@ export async function runVideoDetection({ formData, detectionId }) {
       return simulateResult(detectionId, 'video')
     }
     throw new Error(err.message || 'Video detection failed. Please try again.')
+  }
+}
+
+export async function runVideoDetectionFromUrl({ url, detectionId }) {
+  try {
+    console.log('[detection] Video URL scan → POST /detect/video-url')
+    const { data } = await apiClient.post('/detect/video-url', { url, detection_id: detectionId }, {
+      timeout: 180000,
+    })
+    console.log('[detection] Video URL result:', data)
+    return data
+  } catch (err) {
+    console.error('[detection] Video URL API error:', err.status, err.message)
+    if (err.status === 0 || !err.status) {
+      return simulateResult(detectionId, 'video')
+    }
+    throw new Error(err.message || 'Video URL detection failed. Please try again.')
   }
 }
 

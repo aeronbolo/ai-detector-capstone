@@ -39,7 +39,7 @@ export async function getDashboardStats() {
 
     const detections = detectionsSnap.docs
       .map(d => d.data())
-      .filter(d => !d.deleted)
+      .filter(d => d.deleted !== true)  // explicitly check === true, not !undefined
 
     const totalAnalyses = detections.length
     const totalUsers    = usersSnap.size
@@ -83,7 +83,7 @@ export async function getAllDetections() {
   )
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .filter(d => !d.deleted)
+    .filter(d => d.deleted !== true)  // explicitly check === true, not !undefined
 }
 
 // ── All users ─────────────────────────────────────────────────────────────────

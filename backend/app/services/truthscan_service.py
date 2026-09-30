@@ -29,16 +29,18 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-_API_KEY        = os.getenv("TRUTHSCAN_API_KEY", "")
 _IMAGE_BASE     = "https://detect-image.truthscan.com"
 _VIDEO_BASE     = "https://detect-video.truthscan.com"
 _POLL_INTERVAL  = 2          # seconds between /query calls
 _IMAGE_TIMEOUT  = 60         # max seconds to wait for image result
 _VIDEO_TIMEOUT  = 180        # max seconds to wait for video result
 
+# Read API key dynamically at call time so .env changes are picked up on reload
+def _get_api_key() -> str:
+    return os.getenv("TRUTHSCAN_API_KEY", "")
 
 def truthscan_available() -> bool:
-    return bool(_API_KEY)
+    return bool(_get_api_key())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -78,7 +80,7 @@ async def detect_image_truthscan(
             r1 = await client.get(
                 f"{_IMAGE_BASE}/get-presigned-url",
                 params={"file_name": safe_name},
-                headers={"apikey": _API_KEY},
+                headers={"apikey": _get_api_key()},
             )
             if r1.status_code != 200:
                 logger.error(f"TruthScan presign failed {r1.status_code}: {r1.text}")
@@ -108,7 +110,7 @@ async def detect_image_truthscan(
             r3 = await client.post(
                 f"{_IMAGE_BASE}/detect",
                 json={
-                    "key":                      _API_KEY,
+                    "key":                      _get_api_key(),
                     "url":                      file_url,
                     "generate_heatmap":         True,
                     "generate_heatmap_overlayed": True,
@@ -251,7 +253,7 @@ async def detect_video_truthscan(
             # Single-step multipart upload
             r = await client.post(
                 f"{_VIDEO_BASE}/detect-file",
-                headers={"key": _API_KEY},
+                headers={"key": _get_api_key()},
                 files={"file": (filename, video_bytes, _mime(filename))},
                 data={"model": model},
             )

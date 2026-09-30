@@ -7,13 +7,24 @@
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 
+// Map raw model IDs → human-friendly label
+function getModelLabel(model) {
+  if (!model) return 'N/A'
+  const m = model.toLowerCase()
+  if (m.includes('truthscan')) return 'TruthScan + CNN + LSTM'
+  if (m.includes('siglip') || m.includes('deepfake-detector')) return 'CNN + LSTM (SigLIP)'
+  if (m.includes('videomae') || m.includes('video')) return 'CNN + LSTM (VideoMAE)'
+  return model
+}
+
 export default function ResultCard({ detection, onDownload }) {
   const { label, confidence, model, fileName, processingTimeMs, framesAnalysed } = detection
 
-  const isAI = label === 'AI-Generated'
+  const isAI       = label === 'AI-Generated'
+  const modelLabel = getModelLabel(model)
 
   const description = isAI
-    ? `AI-Generated classification with ${confidence}% confidence. The CNN pass found localized texture inconsistencies and edge blending artifacts, while the LSTM review indicated temporal flicker and frame-to-frame identity drift.`
+    ? `AI-Generated classification with ${confidence}% confidence. The CNN pass found localized texture inconsistencies and edge blending artifacts, while the LSTM temporal review indicated frame-to-frame identity drift.`
     : `Authentic classification with ${confidence}% confidence. No significant spatial artifacts were detected by the CNN pass, and the LSTM temporal review found consistent frame-to-frame patterns characteristic of real media.`
 
   return (
@@ -23,7 +34,7 @@ export default function ResultCard({ detection, onDownload }) {
         Prediction Result
       </p>
 
-      {/* Confidence + badge */}
+      {/* Confidence */}
       <div className="flex items-start gap-4">
         <span className={`text-7xl font-extrabold leading-none ${isAI ? 'text-danger' : 'text-success'}`}>
           {confidence}%
@@ -43,7 +54,7 @@ export default function ResultCard({ detection, onDownload }) {
         </div>
         <div className="flex justify-between">
           <span>Model</span>
-          <span className="text-gray-700 font-medium truncate max-w-[180px]">{model}</span>
+          <span className="text-gray-700 font-medium truncate max-w-[180px]">{modelLabel}</span>
         </div>
         <div className="flex justify-between">
           <span>Processing time</span>

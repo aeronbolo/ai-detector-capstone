@@ -30,6 +30,17 @@ class VideoDetectionResponse(BaseModel):
     frames_analysed:    Optional[int] = None
 
 
+# ── URL request bodies ────────────────────────────────────────────────────────
+
+class ImageUrlRequest(BaseModel):
+    url:          str
+    detection_id: str
+
+class VideoUrlRequest(BaseModel):
+    url:          str
+    detection_id: str
+
+
 # ── Health response ───────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):

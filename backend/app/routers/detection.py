@@ -15,13 +15,14 @@ import logging
 import os
 import time
 import tempfile
+import httpx
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.dependencies import verify_token
 from app.models.ml.model_loader import get_image_classifier, get_video_classifier, predict_image
-from app.models.schemas import ImageDetectionResponse, VideoDetectionResponse
+from app.models.schemas import ImageDetectionResponse, VideoDetectionResponse, ImageUrlRequest, VideoUrlRequest
 from app.services.truthscan_service import (
     detect_image_truthscan,
     detect_video_truthscan,
@@ -208,6 +209,182 @@ async def detect_video(
         f"[video] id={detection_id} uid={uid} LOCAL "
         f"label={label} confidence={confidence}% time={processing_ms}ms"
     )
+    return VideoDetectionResponse(
+        detection_id       = detection_id,
+        label              = label,
+        confidence         = confidence,
+        model              = "videomae-deepfake (local)",
+        processing_time_ms = processing_ms,
+        frames_analysed    = None,
+    )
+
+
+# ── POST /detect/image-url ────────────────────────────────────────────────────
+
+@router.post("/image-url", response_model=ImageDetectionResponse, summary="Detect AI-generated image from URL")
+async def detect_image_from_url(
+    body: ImageUrlRequest,
+    uid: str = Depends(verify_token),
+):
+    detection_id = body.detection_id
+    url          = body.url.strip()
+    t0           = time.perf_counter()
+
+    # Validate URL format
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="Invalid URL. Must start with http:// or https://")
+
+    # Download the image from the URL
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=422, detail=f"Could not fetch image from URL (HTTP {resp.status_code}).")
+            content      = resp.content
+            content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+            # Derive filename from URL
+            file_name = url.split("?")[0].split("/")[-1] or "image.jpg"
+            if not file_name.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+                file_name += ".jpg"
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Failed to fetch URL: {e}")
+
+    # Validate content type
+    if content_type and content_type not in ALLOWED_IMAGE_TYPES:
+        # Be lenient — some servers send wrong content-type for images
+        logger.warning(f"[image-url] Unexpected content-type: {content_type} — proceeding anyway")
+
+    if len(content) > MAX_IMAGE_MB * 1024 * 1024:
+        raise HTTPException(status_code=422, detail=f"Image too large. Maximum size is {MAX_IMAGE_MB} MB.")
+
+    logger.info(f"[image-url] id={detection_id} url={url[:80]} size={len(content)} bytes")
+
+    # ── Primary: TruthScan ────────────────────────────────────────────────────
+    if truthscan_available():
+        ts = await detect_image_truthscan(content, file_name)
+        if ts:
+            processing_ms = int((time.perf_counter() - t0) * 1000)
+            logger.info(f"[image-url] id={detection_id} label={ts['label']} confidence={ts['confidence']}% model={ts['model']} time={processing_ms}ms")
+            return ImageDetectionResponse(
+                detection_id       = detection_id,
+                label              = ts["label"],
+                confidence         = ts["confidence"],
+                model              = ts["model"],
+                processing_time_ms = processing_ms,
+                heatmap_url        = ts.get("heatmap_url"),
+                analysis_details   = ts.get("analysis_details"),
+                warnings           = ts.get("warnings", []),
+            )
+        logger.warning(f"[image-url] TruthScan failed — falling back to local model")
+
+    # ── Fallback: local SigLIP model ──────────────────────────────────────────
+    if get_image_classifier() is None:
+        raise HTTPException(status_code=503, detail="No detection service available. TruthScan failed and local model is not loaded.")
+
+    suffix = "." + file_name.rsplit(".", 1)[-1] if "." in file_name else ".jpg"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        local = predict_image(tmp_path)
+        processing_ms = int((time.perf_counter() - t0) * 1000)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model inference failed: {e}")
+    finally:
+        os.unlink(tmp_path)
+
+    return ImageDetectionResponse(
+        detection_id       = detection_id,
+        label              = local["label"],
+        confidence         = local["confidence"],
+        model              = "siglip-deepfake-v1 (local)",
+        processing_time_ms = processing_ms,
+        heatmap_url        = None,
+        analysis_details   = None,
+        warnings           = [],
+    )
+
+
+# ── POST /detect/video-url ────────────────────────────────────────────────────
+
+@router.post("/video-url", response_model=VideoDetectionResponse, summary="Detect deepfake video from URL")
+async def detect_video_from_url(
+    body: VideoUrlRequest,
+    uid: str = Depends(verify_token),
+):
+    detection_id = body.detection_id
+    url          = body.url.strip()
+    t0           = time.perf_counter()
+
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="Invalid URL. Must start with http:// or https://")
+
+    # Download the video from the URL
+    try:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=422, detail=f"Could not fetch video from URL (HTTP {resp.status_code}).")
+            content   = resp.content
+            file_name = url.split("?")[0].split("/")[-1] or "video.mp4"
+            if not file_name.lower().endswith((".mp4", ".mov", ".avi")):
+                file_name += ".mp4"
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Failed to fetch URL: {e}")
+
+    if len(content) > MAX_VIDEO_MB * 1024 * 1024:
+        raise HTTPException(status_code=422, detail=f"Video too large. Maximum size is {MAX_VIDEO_MB} MB.")
+
+    logger.info(f"[video-url] id={detection_id} url={url[:80]} size={len(content)} bytes")
+
+    # ── Primary: TruthScan ────────────────────────────────────────────────────
+    if truthscan_available():
+        ts = await detect_video_truthscan(content, file_name)
+        if ts:
+            processing_ms = int((time.perf_counter() - t0) * 1000)
+            logger.info(f"[video-url] id={detection_id} label={ts['label']} confidence={ts['confidence']}% time={processing_ms}ms")
+            return VideoDetectionResponse(
+                detection_id       = detection_id,
+                label              = ts["label"],
+                confidence         = ts["confidence"],
+                model              = ts["model"],
+                processing_time_ms = processing_ms,
+                frames_analysed    = None,
+            )
+        logger.warning(f"[video-url] TruthScan failed — falling back to local model")
+
+    # ── Fallback: local VideoMAE model ────────────────────────────────────────
+    classifier = get_video_classifier()
+    if classifier is None:
+        raise HTTPException(status_code=503, detail="No detection service available. TruthScan failed and local model is not loaded.")
+
+    suffix = "." + file_name.rsplit(".", 1)[-1] if "." in file_name else ".mp4"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        results       = classifier(tmp_path)
+        processing_ms = int((time.perf_counter() - t0) * 1000)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Model inference failed: {e}")
+    finally:
+        for _ in range(5):
+            try:
+                os.unlink(tmp_path)
+                break
+            except PermissionError:
+                import time as _t; _t.sleep(0.3)
+
+    top        = max(results, key=lambda r: r["score"])
+    label      = _map_video_label(top["label"])
+    confidence = round(top["score"] * 100, 1)
+
     return VideoDetectionResponse(
         detection_id       = detection_id,
         label              = label,

@@ -11,16 +11,92 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
 
+// ── Password strength checker ─────────────────────────────────────────────────
+function getPasswordStrength(password) {
+  if (!password) return { score: 0, label: '', color: '', checks: [] }
+
+  const checks = [
+    { label: 'At least 8 characters',          ok: password.length >= 8 },
+    { label: 'Uppercase letter (A–Z)',          ok: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter (a–z)',          ok: /[a-z]/.test(password) },
+    { label: 'Number (0–9)',                    ok: /[0-9]/.test(password) },
+    { label: 'Special character (!@#$%^&*…)',  ok: /[^A-Za-z0-9]/.test(password) },
+  ]
+
+  const score = checks.filter(c => c.ok).length
+
+  const levels = [
+    { label: '',            color: 'bg-gray-200'   },
+    { label: 'Very Weak',   color: 'bg-red-500'    },
+    { label: 'Weak',        color: 'bg-orange-400' },
+    { label: 'Fair',        color: 'bg-yellow-400' },
+    { label: 'Strong',      color: 'bg-blue-500'   },
+    { label: 'Very Strong', color: 'bg-green-500'  },
+  ]
+
+  return { score, ...levels[score], checks }
+}
+
+function PasswordStrengthMeter({ password }) {
+  const { score, label, color, checks } = getPasswordStrength(password)
+  if (!password) return null
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Strength bar segments */}
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+              i <= score ? color : 'bg-gray-200'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Strength label */}
+      <p className={`text-xs font-medium ${
+        score <= 1 ? 'text-red-500'    :
+        score === 2 ? 'text-orange-500' :
+        score === 3 ? 'text-yellow-600' :
+        score === 4 ? 'text-blue-500'   : 'text-green-600'
+      }`}>
+        {label}
+      </p>
+
+      {/* Requirements checklist */}
+      <ul className="space-y-0.5">
+        {checks.map((c, i) => (
+          <li key={i} className={`flex items-center gap-1.5 text-xs ${c.ok ? 'text-green-600' : 'text-gray-400'}`}>
+            {c.ok ? (
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            )}
+            {c.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError]           = useState('')
+  const [loading, setLoading]       = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
-  const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
+  const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
+  const { score } = getPasswordStrength(form.password)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -29,8 +105,11 @@ export default function RegisterPage() {
     if (form.password !== form.confirm) {
       return setError('Passwords do not match.')
     }
-    if (form.password.length < 6) {
-      return setError('Password must be at least 6 characters.')
+    if (form.password.length < 8) {
+      return setError('Password must be at least 8 characters.')
+    }
+    if (score < 3) {
+      return setError('Password is too weak. Add uppercase, lowercase, numbers and a special character.')
     }
 
     setLoading(true)
@@ -60,6 +139,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
@@ -99,15 +179,21 @@ export default function RegisterPage() {
               required
               autoComplete="email"
             />
-            <Input
-              label="Password"
-              type="password"
-              value={form.password}
-              onChange={set('password')}
-              placeholder="Min. 6 characters"
-              required
-              autoComplete="new-password"
-            />
+
+            {/* Password + strength meter */}
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                value={form.password}
+                onChange={set('password')}
+                placeholder="Min. 8 characters"
+                required
+                autoComplete="new-password"
+              />
+              <PasswordStrengthMeter password={form.password} />
+            </div>
+
             <Input
               label="Confirm password"
               type="password"
@@ -118,7 +204,13 @@ export default function RegisterPage() {
               autoComplete="new-password"
             />
 
-            <Button type="submit" variant="primary" className="w-full mt-2" loading={loading}>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full mt-2"
+              loading={loading}
+              disabled={loading || score < 3}
+            >
               Create account
             </Button>
           </form>

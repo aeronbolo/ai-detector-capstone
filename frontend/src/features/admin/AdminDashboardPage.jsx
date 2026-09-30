@@ -149,20 +149,27 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Clear database (soft delete all detections)
+  // Clear database (soft delete all detections + reset user detectionCounts)
   async function handleClearDatabase() {
     setClearing(true)
     try {
-      const { writeBatch, doc, collection } = await import('firebase/firestore')
+      const { writeBatch, doc, collection, getDocs } = await import('firebase/firestore')
       const { db } = await import('@/lib/firebase')
-      const detections = await getAllDetections()
 
-      // Batch soft-delete in groups of 500 (Firestore limit)
-      const chunks = []
-      for (let i = 0; i < detections.length; i += 499) {
-        chunks.push(detections.slice(i, i + 499))
+      // Fetch ALL detections (including already-deleted ones) to ensure nothing slips through
+      const allDetectionsSnap = await getDocs(collection(db, 'detections'))
+      const allDetections = allDetectionsSnap.docs
+
+      // Fetch all users to reset their detectionCount
+      const allUsersSnap = await getDocs(collection(db, 'users'))
+      const allUsers = allUsersSnap.docs
+
+      // Batch soft-delete ALL detection docs in groups of 499
+      const detectionChunks = []
+      for (let i = 0; i < allDetections.length; i += 499) {
+        detectionChunks.push(allDetections.slice(i, i + 499))
       }
-      for (const chunk of chunks) {
+      for (const chunk of detectionChunks) {
         const batch = writeBatch(db)
         chunk.forEach(d => {
           batch.update(doc(db, 'detections', d.id), { deleted: true })
@@ -170,11 +177,25 @@ export default function AdminDashboardPage() {
         await batch.commit()
       }
 
+      // Batch reset detectionCount to 0 on ALL user docs
+      const userChunks = []
+      for (let i = 0; i < allUsers.length; i += 499) {
+        userChunks.push(allUsers.slice(i, i + 499))
+      }
+      for (const chunk of userChunks) {
+        const batch = writeBatch(db)
+        chunk.forEach(u => {
+          batch.update(doc(db, 'users', u.id), { detectionCount: 0 })
+        })
+        await batch.commit()
+      }
+
       // Refresh stats
       const data = await getDashboardStats()
       setStats(data)
-      showToast(`Database cleared — ${detections.length} records removed.`)
+      showToast(`Database cleared — ${allDetections.length} records removed.`)
     } catch (err) {
+      console.error('Clear database error:', err)
       showToast('Clear failed. Please try again.')
     } finally {
       setClearing(false)
