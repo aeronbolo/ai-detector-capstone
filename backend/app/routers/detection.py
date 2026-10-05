@@ -106,7 +106,7 @@ async def detect_image(
     if get_image_classifier() is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No detection service available. TruthScan failed and local model is not loaded.",
+            detail="Detection service is temporarily unavailable. Please try again later.",
         )
 
     suffix = os.path.splitext(file.filename or "upload.jpg")[1] or ".jpg"
@@ -178,7 +178,7 @@ async def detect_video(
     if classifier is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No detection service available. TruthScan failed and local model is not loaded.",
+            detail="Detection service is temporarily unavailable. Please try again later.",
         )
 
     suffix = os.path.splitext(file.filename or "upload.mp4")[1] or ".mp4"
@@ -281,7 +281,7 @@ async def detect_image_from_url(
 
     # ── Fallback: local SigLIP model ──────────────────────────────────────────
     if get_image_classifier() is None:
-        raise HTTPException(status_code=503, detail="No detection service available. TruthScan failed and local model is not loaded.")
+        raise HTTPException(status_code=503, detail="Detection service is temporarily unavailable. Please try again later.")
 
     suffix = "." + file_name.rsplit(".", 1)[-1] if "." in file_name else ".jpg"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -361,7 +361,7 @@ async def detect_video_from_url(
     # ── Fallback: local VideoMAE model ────────────────────────────────────────
     classifier = get_video_classifier()
     if classifier is None:
-        raise HTTPException(status_code=503, detail="No detection service available. TruthScan failed and local model is not loaded.")
+        raise HTTPException(status_code=503, detail="Detection service is temporarily unavailable. Please try again later.")
 
     suffix = "." + file_name.rsplit(".", 1)[-1] if "." in file_name else ".mp4"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
