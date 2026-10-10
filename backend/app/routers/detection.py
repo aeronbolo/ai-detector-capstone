@@ -203,7 +203,7 @@ async def detect_video(
 
     top        = max(results, key=lambda r: r["score"])
     label      = _map_video_label(top["label"])
-    confidence = round(top["score"] * 100, 1)
+    confidence = round(min(100.0, max(0.0, top["score"] * 100)), 1)
 
     logger.info(
         f"[video] id={detection_id} uid={uid} LOCAL "
@@ -383,7 +383,7 @@ async def detect_video_from_url(
 
     top        = max(results, key=lambda r: r["score"])
     label      = _map_video_label(top["label"])
-    confidence = round(top["score"] * 100, 1)
+    confidence = round(min(100.0, max(0.0, top["score"] * 100)), 1)
 
     return VideoDetectionResponse(
         detection_id       = detection_id,

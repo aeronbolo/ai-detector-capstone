@@ -50,10 +50,12 @@ export default function ModelSignalsPanel({ detection }) {
   const isAI        = label === 'AI-Generated' || label === 'Digitally Edited'
   const isTruthScan = model === 'truthscan' || model === 'truthscan-video'
 
-  const primaryScore  = confidence
-  const secondaryScore = fileType === 'video'
-    ? Math.max(0, Math.round(confidence * 0.85))
-    : Math.min(100, Math.round(confidence * 0.92))
+  // Always cap scores between 0 and 100
+  const safeConfidence  = Math.min(100, Math.max(0, confidence || 0))
+  const primaryScore    = safeConfidence
+  const secondaryScore  = fileType === 'video'
+    ? Math.min(100, Math.max(0, Math.round(safeConfidence * 0.85)))
+    : Math.min(100, Math.max(0, Math.round(safeConfidence * 0.92)))
 
   return (
     <div className="bg-white rounded-lg shadow-card p-6 flex flex-col gap-5 overflow-y-auto max-h-[700px]">

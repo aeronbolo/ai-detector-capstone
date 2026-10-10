@@ -17,9 +17,12 @@ export default function ResultCard({ detection, onDownload }) {
 
   const isAI = label === 'AI-Generated' || label === 'Digitally Edited'
 
+  // Always cap confidence between 0 and 100
+  const safeConfidence = Math.min(100, Math.max(0, confidence || 0))
+
   const description = isAI
-    ? `This ${fileType} appears to be AI-generated with ${confidence}% confidence. Our system detected signs of artificial generation that are not typical of real, unedited media.`
-    : `This ${fileType} appears to be authentic with ${confidence}% confidence. Our system found no significant signs of AI generation or digital manipulation.`
+    ? `This ${fileType} appears to be AI-generated with ${safeConfidence}% confidence. Our system detected signs of artificial generation that are not typical of real, unedited media.`
+    : `This ${fileType} appears to be authentic with ${safeConfidence}% confidence. Our system found no significant signs of AI generation or digital manipulation.`
 
   return (
     <div className="bg-white rounded-lg shadow-card p-6 flex flex-col gap-5">
@@ -32,7 +35,7 @@ export default function ResultCard({ detection, onDownload }) {
       {/* Confidence score */}
       <div>
         <span className={`text-7xl font-extrabold leading-none ${isAI ? 'text-danger' : 'text-success'}`}>
-          {confidence}%
+          {safeConfidence}%
         </span>
         <p className="text-xs text-gray-400 mt-1">Confidence score</p>
       </div>
