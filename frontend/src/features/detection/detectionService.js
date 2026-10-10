@@ -32,8 +32,7 @@ export async function runImageDetection({ formData, detectionId }) {
   } catch (err) {
     console.error('[detection] API error status:', err.status, 'message:', err.message)
     if (err.status === 0 || err.status === undefined || err.status === null) {
-      console.warn('[detection] FastAPI unreachable — using simulated detection result.')
-      return simulateResult(detectionId, 'image')
+      throw new Error('Cannot connect to the analysis server. Please check your internet connection and try again.')
     }
     throw new Error(err.message || 'Image detection failed. Please try again.')
   }
@@ -48,7 +47,7 @@ export async function runImageDetectionFromUrl({ url, detectionId }) {
   } catch (err) {
     console.error('[detection] URL API error:', err.status, err.message)
     if (err.status === 0 || err.status === undefined || err.status === null) {
-      return simulateResult(detectionId, 'image')
+      throw new Error('Cannot connect to the analysis server. Please check your internet connection and try again.')
     }
     throw new Error(err.message || 'Image URL detection failed. Please try again.')
   }
@@ -69,8 +68,7 @@ export async function runVideoDetection({ formData, detectionId }) {
     return data
   } catch (err) {
     if (err.status === 0 || !err.status) {
-      console.warn('FastAPI unreachable — using simulated detection result.')
-      return simulateResult(detectionId, 'video')
+      throw new Error('Cannot connect to the analysis server. Please check your internet connection and try again.')
     }
     throw new Error(err.message || 'Video detection failed. Please try again.')
   }
@@ -87,7 +85,7 @@ export async function runVideoDetectionFromUrl({ url, detectionId }) {
   } catch (err) {
     console.error('[detection] Video URL API error:', err.status, err.message)
     if (err.status === 0 || !err.status) {
-      return simulateResult(detectionId, 'video')
+      throw new Error('Cannot connect to the analysis server. Please check your internet connection and try again.')
     }
     throw new Error(err.message || 'Video URL detection failed. Please try again.')
   }
