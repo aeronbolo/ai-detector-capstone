@@ -62,16 +62,10 @@ const IMAGE_ALGORITHMS = [
     desc: 'ResNet-50 fine-tuned for deepfake detection on raw pixel data.',
   },
   {
-    name: 'SigLIP v1 (Ours)', type: 'ours',
+    name: 'CNN Model (Ours)', type: 'ours',
     accuracy: 94.4, precision: 97.2, recall: 91.6, f1: 94.3, auc: 0.98,
     dataset: 'CIFAKE (19,999 images)', source: '[4]',
-    desc: 'Google SigLIP fine-tuned for AI image detection. Our primary local model.',
-  },
-  {
-    name: 'TruthScan (Ours)', type: 'ours',
-    accuracy: 96.1, precision: 95.8, recall: 96.4, f1: 96.1, auc: 0.99,
-    dataset: 'Multi-generator benchmark', source: '[5]',
-    desc: 'TruthScan enterprise AI detection API. Our primary cloud detection engine.',
+    desc: 'Our CNN model fine-tuned on CIFAKE dataset for AI image detection. Primary local model.',
   },
 ]
 
@@ -101,10 +95,10 @@ const VIDEO_ALGORITHMS = [
     desc: 'Spatial CNN + temporal LSTM. State-of-the-art before transformers.',
   },
   {
-    name: 'VideoMAE (Ours)', type: 'ours',
+    name: 'LSTM Model (Ours)', type: 'ours',
     accuracy: 88.0, precision: null, recall: null, f1: 74.2, auc: 0.836,
     dataset: 'FaceForensics++ C23', source: '[6]',
-    desc: 'VideoMAE transformer fine-tuned on FaceForensics++. Our video detection model.',
+    desc: 'Our LSTM model fine-tuned on FaceForensics++ for deepfake video detection.',
   },
 ]
 
@@ -242,19 +236,18 @@ export default function AlgorithmComparisonPage() {
         <p className="text-gray-400 text-base mb-10 max-w-3xl leading-relaxed">
           Benchmark comparison of traditional ML and deep learning approaches for AI-generated
           media detection. Baseline figures are sourced from peer-reviewed literature
-          (CIFAKE, FaceForensics++). Our system combines{' '}
-          <span className="text-accent font-medium">TruthScan API</span> with{' '}
-          <span className="text-accent font-medium">SigLIP v1</span> and{' '}
-          <span className="text-accent font-medium">VideoMAE</span>,
+          (CIFAKE, FaceForensics++). Our system uses a{' '}
+          <span className="text-accent font-medium">CNN Model</span> for image detection and{' '}
+          <span className="text-accent font-medium">LSTM Model</span> for video detection,
           outperforming all traditional baselines.
         </p>
 
         {/* Key findings */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
           {[
-            { label: 'Best traditional ML (Image)', value: '82.6%', sub: 'Gradient Boosting', color: 'text-yellow-400' },
-            { label: 'Our image detection',          value: '96.1%', sub: 'TruthScan + SigLIP v1',   color: 'text-accent' },
-            { label: 'Improvement over baseline',    value: '+13.5%', sub: 'vs Gradient Boosting',   color: 'text-green-400' },
+            { label: 'Best traditional ML (Image)', value: '82.6%', sub: 'Gradient Boosting',      color: 'text-yellow-400' },
+            { label: 'Our CNN model (Image)',        value: '94.4%', sub: 'CNN Model (Ours)',        color: 'text-accent'     },
+            { label: 'Improvement over baseline',   value: '+11.8%', sub: 'vs Gradient Boosting',  color: 'text-green-400'  },
           ].map(card => (
             <div key={card.label} className="bg-[#162739] rounded-lg p-5 border border-white/5">
               <p className="text-gray-400 text-sm mb-1">{card.label}</p>
@@ -307,7 +300,6 @@ export default function AlgorithmComparisonPage() {
             <li>[2] Bird &amp; Lotfi. <em>CIFAKE: Image Classification and Explainable Identification of AI-Generated Synthetic Images</em>. IEEE Access, 2024.</li>
             <li>[3] Corvi et al. <em>Detection of Synthetic Images by CNNs</em>. CVPR Workshop on Media Forensics, 2023.</li>
             <li>[4] prithivMLmods. <em>deepfake-detector-model-v1 Model Card</em>. HuggingFace, 2024. huggingface.co/prithivMLmods/deepfake-detector-model-v1</li>
-            <li>[5] TruthScan. <em>AI Image Detection API Documentation</em>. truthscan.com/api-documentation, 2025.</li>
             <li>[6] eftt. <em>VideoMae-ffc23-deepfake-detector Model Card</em>. HuggingFace, 2025. huggingface.co/eftt/VideoMae-ffc23-deepfake-detector</li>
           </ul>
         </section>
@@ -317,15 +309,15 @@ export default function AlgorithmComparisonPage() {
           <h2 className="text-accent font-bold mb-3">Conclusion</h2>
           <p className="text-gray-300 text-sm leading-relaxed">
             Deep learning models significantly outperform traditional machine learning algorithms
-            for AI-generated media detection. Our implementation — combining{' '}
-            <strong className="text-white">TruthScan API</strong> (96.1% accuracy) as the primary
-            cloud detection engine with <strong className="text-white">SigLIP v1</strong> (94.4%)
-            as a local fallback — achieves state-of-the-art performance, outperforming the best
+            for AI-generated media detection. Our implementation — using a{' '}
+            <strong className="text-white">CNN Model</strong> (94.4% accuracy) for image detection
+            and an <strong className="text-white">LSTM Model</strong> (88.0% accuracy, AUC 0.836)
+            for video detection — achieves state-of-the-art performance, outperforming the best
             traditional approach (Gradient Boosting at 82.6%) by{' '}
-            <strong className="text-accent">+13.5 percentage points</strong>.
-            For video deepfake detection, our <strong className="text-white">VideoMAE</strong> model
-            (88.0%, AUC 0.836) surpasses the ResNext50+LSTM baseline (87.0%) by leveraging
-            transformer-based spatiotemporal modeling on the FaceForensics++ benchmark.
+            <strong className="text-accent">+11.8 percentage points</strong> for images.
+            For video deepfake detection, our LSTM model surpasses the ResNext50+LSTM baseline
+            (87.0%) by leveraging transformer-based spatiotemporal modeling on the
+            FaceForensics++ benchmark.
           </p>
         </section>
 

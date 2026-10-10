@@ -25,6 +25,7 @@ const AdminDashboardPage       = lazy(() => import('@/features/admin/AdminDashbo
 const AllAnalysesPage          = lazy(() => import('@/features/admin/AllAnalysesPage'))
 const UserManagementPage       = lazy(() => import('@/features/admin/UserManagementPage'))
 const AlgorithmComparisonPage  = lazy(() => import('@/features/admin/AlgorithmComparisonPage'))
+const TrainModelPage           = lazy(() => import('@/features/admin/TrainModelPage'))
 
 // 404
 const NotFoundPage = lazy(() => import('@/features/NotFoundPage'))
@@ -194,6 +195,14 @@ export default function AppRouter() {
             element={
               <AdminRoute>
                 <AlgorithmComparisonPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/train"
+            element={
+              <AdminRoute>
+                <TrainModelPage />
               </AdminRoute>
             }
           />

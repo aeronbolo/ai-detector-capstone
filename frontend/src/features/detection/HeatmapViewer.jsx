@@ -28,7 +28,7 @@ export default function HeatmapViewer({ detection }) {
       {/* Heatmap content */}
       <div className="relative flex-1 flex items-center justify-center min-h-[280px] bg-dark-bg">
 
-        {/* ── Real TruthScan heatmap ── */}
+        {/* ── Real heatmap ── */}
         {heatmapUrl && !imgError ? (
           <div className="relative w-full h-full">
             <img
@@ -37,10 +37,6 @@ export default function HeatmapViewer({ detection }) {
               className="w-full h-full object-contain max-h-72"
               onError={() => setImgError(true)}
             />
-            {/* TruthScan badge */}
-            <div className="absolute top-2 right-2 bg-accent/90 text-white text-xs font-bold px-2 py-0.5 rounded">
-              TruthScan Heatmap
-            </div>
           </div>
 
         ) : fileType === 'image' && isAI ? (

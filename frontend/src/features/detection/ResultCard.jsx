@@ -1,68 +1,65 @@
 /**
  * ResultCard — left panel of the detection result page.
- * Shows: large confidence %, label badge, description, download button.
- * Matches mockup: "71%" large, "AI-Generated" red badge, description text.
+ * User-friendly language — no technical terms exposed to users.
  */
 
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 
-// Map raw model IDs → human-friendly label
-function getModelLabel(model) {
-  if (!model) return 'N/A'
-  const m = model.toLowerCase()
-  if (m.includes('truthscan')) return 'TruthScan + CNN + LSTM'
-  if (m.includes('siglip') || m.includes('deepfake-detector')) return 'CNN + LSTM (SigLIP)'
-  if (m.includes('videomae') || m.includes('video')) return 'CNN + LSTM (VideoMAE)'
-  return model
+function formatTime(ms) {
+  if (!ms) return '—'
+  if (ms < 1000) return `${ms} ms`
+  return `${(ms / 1000).toFixed(1)} seconds`
 }
 
 export default function ResultCard({ detection, onDownload }) {
-  const { label, confidence, model, fileName, processingTimeMs, framesAnalysed } = detection
+  const { label, confidence, fileName, fileType, processingTimeMs, framesAnalysed } = detection
 
-  const isAI       = label === 'AI-Generated'
-  const modelLabel = getModelLabel(model)
+  const isAI = label === 'AI-Generated' || label === 'Digitally Edited'
 
   const description = isAI
-    ? `AI-Generated classification with ${confidence}% confidence. The CNN pass found localized texture inconsistencies and edge blending artifacts, while the LSTM temporal review indicated frame-to-frame identity drift.`
-    : `Authentic classification with ${confidence}% confidence. No significant spatial artifacts were detected by the CNN pass, and the LSTM temporal review found consistent frame-to-frame patterns characteristic of real media.`
+    ? `This ${fileType} appears to be AI-generated with ${confidence}% confidence. Our system detected signs of artificial generation that are not typical of real, unedited media.`
+    : `This ${fileType} appears to be authentic with ${confidence}% confidence. Our system found no significant signs of AI generation or digital manipulation.`
 
   return (
     <div className="bg-white rounded-lg shadow-card p-6 flex flex-col gap-5">
+
       {/* Section tag */}
       <p className="text-xs uppercase tracking-widest font-semibold text-accent">
-        Prediction Result
+        Analysis Result
       </p>
 
-      {/* Confidence */}
-      <div className="flex items-start gap-4">
+      {/* Confidence score */}
+      <div>
         <span className={`text-7xl font-extrabold leading-none ${isAI ? 'text-danger' : 'text-success'}`}>
           {confidence}%
         </span>
+        <p className="text-xs text-gray-400 mt-1">Confidence score</p>
       </div>
 
+      {/* Verdict badge */}
       <Badge label={label} className="self-start text-base px-4 py-1.5" />
 
-      {/* Description */}
+      {/* Plain English description */}
       <p className="text-gray-600 text-sm leading-relaxed">{description}</p>
 
-      {/* Meta */}
+      {/* File details */}
       <div className="border-t pt-4 space-y-2 text-xs text-gray-500">
         <div className="flex justify-between">
-          <span>File</span>
+          <span>File name</span>
           <span className="text-gray-700 font-medium truncate max-w-[180px]">{fileName}</span>
         </div>
         <div className="flex justify-between">
-          <span>Model</span>
-          <span className="text-gray-700 font-medium truncate max-w-[180px]">{modelLabel}</span>
+          <span>File type</span>
+          <span className="text-gray-700 font-medium capitalize">{fileType}</span>
         </div>
         <div className="flex justify-between">
-          <span>Processing time</span>
-          <span className="text-gray-700 font-medium">{processingTimeMs ? `${processingTimeMs} ms` : '—'}</span>
+          <span>Analysis time</span>
+          <span className="text-gray-700 font-medium">{formatTime(processingTimeMs)}</span>
         </div>
         {framesAnalysed && (
           <div className="flex justify-between">
-            <span>Frames analysed</span>
+            <span>Video frames checked</span>
             <span className="text-gray-700 font-medium">{framesAnalysed}</span>
           </div>
         )}

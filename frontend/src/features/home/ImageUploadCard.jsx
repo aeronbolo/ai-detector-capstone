@@ -176,7 +176,10 @@ export default function ImageUploadCard() {
       }
     } catch (err) {
       setStage('error')
-      setError(err.message || 'Detection failed. Please try again.')
+      const msg = err.message || 'Detection failed. Please try again.'
+      setError(msg.includes('temporarily') || msg.includes('503')
+        ? 'The analysis service is currently busy. Please try again in a moment.'
+        : msg)
     }
   }
 

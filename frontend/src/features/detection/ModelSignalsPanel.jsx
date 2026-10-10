@@ -1,29 +1,20 @@
 /**
- * ModelSignalsPanel — right panel showing model scores and TruthScan analysis.
- *
- * When TruthScan data is available:
- *   - Shows keyIndicators (specific artifact cues)
- *   - Shows detailedReasoning (narrative explanation)
- *   - Shows visualPatterns
- *   - Shows warnings (watermark detection, blur, screen recapture)
- *
- * When only local model is used:
- *   - Shows derived CNN/LSTM score bars
- *   - Shows generic validation checks
+ * ModelSignalsPanel — right panel showing analysis details.
+ * All language is user-friendly — no technical terms exposed.
  */
 
-function ScoreBar({ label, score, color }) {
+function ScoreBar({ label, score }) {
+  const color = score >= 70 ? 'bg-danger' : score >= 50 ? 'bg-yellow-400' : 'bg-success'
+  const textColor = score >= 70 ? 'text-danger' : score >= 50 ? 'text-yellow-500' : 'text-success'
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-sm">
         <span className="text-gray-600 font-medium">{label}</span>
-        <span className={`font-bold ${color}`}>{score}%</span>
+        <span className={`font-bold ${textColor}`}>{score}%</span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2.5">
         <div
-          className={`h-2.5 rounded-full transition-all duration-700 ${
-            score >= 70 ? 'bg-danger' : score >= 50 ? 'bg-yellow-400' : 'bg-success'
-          }`}
+          className={`h-2.5 rounded-full transition-all duration-700 ${color}`}
           style={{ width: `${score}%` }}
         />
       </div>
@@ -31,61 +22,20 @@ function ScoreBar({ label, score, color }) {
   )
 }
 
-function StatusItem({ label, status, ok }) {
-  return (
-    <div className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
-      <span className="text-sm text-gray-600">{label}</span>
-      <span className={`flex items-center gap-1.5 text-sm font-medium ${ok ? 'text-success' : 'text-danger'}`}>
-        {ok ? (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-        )}
-        {status}
-      </span>
-    </div>
-  )
-}
-
-// ── Warning badge ─────────────────────────────────────────────────────────────
 function WarningBadge({ warning }) {
   const typeLabels = {
-    blur_dark:        '🌑 Blurred / Dark',
-    watermark:        '🔖 Watermark',
-    screen_recapture: '🖥 Screen Recapture',
+    blur_dark:        '⚠ Image is blurry or dark',
+    watermark:        '⚠ Watermark detected',
+    screen_recapture: '⚠ This looks like a screen photo',
   }
-  const label = typeLabels[warning.type] || warning.type
-  const detail = warning.label ? ` — ${warning.label}` : ''
-  const conf   = warning.confidence ? ` (${Math.round(warning.confidence * 100)}%)` : ''
-
+  const label = typeLabels[warning.type] || `⚠ ${warning.type}`
   return (
-    <span className="inline-flex items-center gap-1 bg-yellow-50 text-yellow-700 border border-yellow-200
-                     text-xs font-medium px-2 py-0.5 rounded-full">
-      {label}{detail}{conf}
+    <span className="inline-flex items-center bg-yellow-50 text-yellow-700 border border-yellow-200
+                     text-xs font-medium px-3 py-1 rounded-full">
+      {label}
     </span>
   )
 }
-
-// ── Agreement badge ───────────────────────────────────────────────────────────
-function AgreementBadge({ agreement }) {
-  const styles = {
-    strong:      'bg-green-50 text-green-700 border-green-200',
-    moderate:    'bg-blue-50 text-blue-700 border-blue-200',
-    weak:        'bg-yellow-50 text-yellow-700 border-yellow-200',
-    disagreement:'bg-red-50 text-red-700 border-red-200',
-  }
-  const style = styles[agreement?.toLowerCase()] || styles.moderate
-  return (
-    <span className={`inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border ${style}`}>
-      {agreement ? agreement.charAt(0).toUpperCase() + agreement.slice(1) : 'N/A'} agreement
-    </span>
-  )
-}
-
 
 export default function ModelSignalsPanel({ detection }) {
   const {
@@ -100,18 +50,10 @@ export default function ModelSignalsPanel({ detection }) {
   const isAI        = label === 'AI-Generated' || label === 'Digitally Edited'
   const isTruthScan = model === 'truthscan' || model === 'truthscan-video'
 
-  // Derive score bars from confidence
-  const spatialScore = fileType === 'image'
-    ? confidence
-    : Math.min(100, Math.round(confidence * 1.1))
-  const temporalScore = fileType === 'video'
+  const primaryScore  = confidence
+  const secondaryScore = fileType === 'video'
     ? Math.max(0, Math.round(confidence * 0.85))
-    : null
-
-  const cnnColor  = spatialScore  >= 70 ? 'text-danger' : spatialScore  >= 50 ? 'text-yellow-500' : 'text-success'
-  const lstmColor = temporalScore != null
-    ? (temporalScore >= 70 ? 'text-danger' : temporalScore >= 50 ? 'text-yellow-500' : 'text-success')
-    : 'text-gray-400'
+    : Math.min(100, Math.round(confidence * 0.92))
 
   return (
     <div className="bg-white rounded-lg shadow-card p-6 flex flex-col gap-5 overflow-y-auto max-h-[700px]">
@@ -119,92 +61,58 @@ export default function ModelSignalsPanel({ detection }) {
       {/* Header */}
       <div>
         <p className="text-xs uppercase tracking-widest font-semibold text-accent">
-          Model Signals
+          Analysis Details
         </p>
-        <p className="text-xs text-gray-500 mt-1">
-          <span className="font-medium text-gray-700">
-            {isTruthScan
-              ? fileType === 'video'
-                ? 'TruthScan AI + CNN + LSTM'
-                : 'TruthScan AI + CNN'
-              : model?.includes('siglip') || model?.includes('deepfake-detector')
-                ? 'CNN (SigLIP Local Model)'
-                : model?.includes('videomae') || model?.includes('video')
-                  ? 'CNN + LSTM (VideoMAE Local Model)'
-                  : model || 'CNN'}
-          </span>
+        <p className="text-xs text-gray-400 mt-1">
+          Powered by AI Detection Engine
         </p>
       </div>
 
       {/* Score bars */}
       <div className="space-y-4">
-        {/* TruthScan or CNN primary score */}
         <ScoreBar
-          label={isTruthScan ? 'TruthScan Score' : 'CNN Score'}
-          score={spatialScore}
-          color={cnnColor}
+          label="Detection Confidence"
+          score={primaryScore}
         />
-        {/* CNN Score — only for image with TruthScan */}
-        {fileType === 'image' && isTruthScan && (
+        {fileType === 'image' && (
           <ScoreBar
-            label="CNN Score"
-            score={Math.min(100, Math.round(spatialScore * 0.92))}
-            color={cnnColor}
+            label="Image Analysis Score"
+            score={secondaryScore}
           />
         )}
-        {/* LSTM Score — only for video */}
-        {fileType === 'video' && temporalScore != null && (
+        {fileType === 'video' && (
           <ScoreBar
-            label="LSTM Score"
-            score={temporalScore}
-            color={lstmColor}
-          />
-        )}
-        {/* CNN Score — local model image fallback */}
-        {fileType === 'image' && !isTruthScan && (
-          <ScoreBar
-            label="CNN Score"
-            score={Math.min(100, Math.round(spatialScore * 0.92))}
-            color={cnnColor}
+            label="Video Analysis Score"
+            score={secondaryScore}
           />
         )}
       </div>
 
       {/* Overall verdict */}
-      <div className={`rounded-lg p-3 text-center text-sm font-semibold ${
+      <div className={`rounded-lg p-4 text-center text-sm font-semibold ${
         isAI
           ? 'bg-red-50 text-danger border border-red-100'
           : 'bg-green-50 text-success border border-green-100'
       }`}>
         {isAI
-          ? '⚠ AI-Generated content detected'
-          : '✓ Authentic content — no manipulation found'}
+          ? '⚠ This content appears to be AI-generated'
+          : '✓ This content appears to be authentic'}
       </div>
 
-      {/* ── TruthScan analysis details ── */}
+      {/* TruthScan analysis details — user friendly */}
       {isTruthScan && analysisDetails && (
         <div className="space-y-4 border-t pt-4">
 
-          {/* Agreement + confidence */}
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <AgreementBadge agreement={analysisDetails.agreement} />
-            {analysisDetails.confidence != null && (
-              <span className="text-xs text-gray-500">
-                Analysis confidence: <strong>{Math.round(analysisDetails.confidence)}%</strong>
-              </span>
-            )}
-          </div>
-
-          {/* Key indicators */}
+          {/* What we found */}
           {analysisDetails.keyIndicators?.length > 0 && (
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
-                Key Indicators
+                What we found
               </p>
               <ul className="space-y-1.5">
                 {analysisDetails.keyIndicators.map((item, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-danger mt-0.5">•</span>
+                    <span className={`mt-0.5 ${isAI ? 'text-danger' : 'text-success'}`}>•</span>
                     {item}
                   </li>
                 ))}
@@ -212,11 +120,11 @@ export default function ModelSignalsPanel({ detection }) {
             </div>
           )}
 
-          {/* Detailed reasoning */}
+          {/* Why we think this */}
           {analysisDetails.detailedReasoning && (
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
-                Detailed Reasoning
+                Why we think this
               </p>
               <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-lg p-3 border border-gray-100">
                 {analysisDetails.detailedReasoning}
@@ -224,11 +132,11 @@ export default function ModelSignalsPanel({ detection }) {
             </div>
           )}
 
-          {/* Visual patterns */}
+          {/* Visual signs detected */}
           {analysisDetails.visualPatterns?.length > 0 && (
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
-                Visual Patterns
+                Visual signs detected
               </p>
               <ul className="space-y-1">
                 {analysisDetails.visualPatterns.map((p, i) => (
@@ -240,7 +148,7 @@ export default function ModelSignalsPanel({ detection }) {
             </div>
           )}
 
-          {/* Image tags */}
+          {/* Tags */}
           {analysisDetails.imageTags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {analysisDetails.imageTags.map((tag, i) => (
@@ -252,11 +160,11 @@ export default function ModelSignalsPanel({ detection }) {
             </div>
           )}
 
-          {/* Recommendations */}
+          {/* What you can do */}
           {analysisDetails.recommendations?.length > 0 && (
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
-                Recommendations
+                What you can do
               </p>
               <ul className="space-y-1">
                 {analysisDetails.recommendations.map((r, i) => (
@@ -270,37 +178,23 @@ export default function ModelSignalsPanel({ detection }) {
         </div>
       )}
 
-      {/* ── Warnings (watermark, blur, screen recapture) ── */}
+      {/* Warnings */}
       {warnings?.length > 0 && (
         <div className="border-t pt-4">
           <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
-            Warnings
+            Things to note
           </p>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-2">
             {warnings.map((w, i) => <WarningBadge key={i} warning={w} />)}
           </div>
         </div>
       )}
 
-      {/* ── Validation checks ── */}
-      <div className="border-t pt-4">
-        <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">
-          Validation checks
-        </p>
-        <StatusItem label="File validation"  status="Passed"    ok={true} />
-        <StatusItem label="Stored record"    status="Saved"     ok={true} />
-        <StatusItem label="Model inference"  status="Completed" ok={true} />
-      </div>
-
       {/* Disclaimer */}
       <p className="text-xs text-gray-400 leading-relaxed border-t pt-4">
-        {isTruthScan
-          ? fileType === 'video'
-            ? 'Analysis by TruthScan AI + CNN + LSTM. Results are probabilistic — manual review recommended for critical decisions.'
-            : 'Analysis by TruthScan AI + CNN. Results are probabilistic — manual review recommended for critical decisions.'
-          : fileType === 'video'
-            ? 'Analysis uses CNN + LSTM temporal review. Results are probabilistic — manual review is recommended for critical decisions.'
-            : 'Analysis uses CNN spatial checks. Results are probabilistic — manual review is recommended for critical decisions.'}
+        Results are based on AI analysis and may not be 100% accurate.
+        We recommend using this as a guide, not as final proof.
+        When in doubt, consult a media forensics expert.
       </p>
     </div>
   )

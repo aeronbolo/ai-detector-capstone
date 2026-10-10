@@ -281,7 +281,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* ── Quick nav to other admin pages ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/admin/analyses"
             className="bg-[#162739] border border-white/5 rounded-lg p-5 flex items-center
@@ -324,7 +324,24 @@ export default function AdminDashboardPage() {
             <div>
               <p className="text-white font-semibold">Algorithm Comparison</p>
               <p className="text-gray-400 text-sm mt-0.5">
-                Benchmark analysis — our models vs baselines
+                Benchmark — our models vs baselines
+              </p>
+            </div>
+            <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+
+          <Link
+            to="/admin/train"
+            className="bg-[#162739] border border-white/5 rounded-lg p-5 flex items-center
+                       justify-between hover:border-accent/40 transition group"
+          >
+            <div>
+              <p className="text-white font-semibold">Train Model</p>
+              <p className="text-gray-400 text-sm mt-0.5">
+                Upload datasets to train CNN / LSTM
               </p>
             </div>
             <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition"
@@ -353,3 +370,5 @@ export default function AdminDashboardPage() {
     </div>
   )
 }
+
+
