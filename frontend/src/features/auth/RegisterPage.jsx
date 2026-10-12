@@ -1,6 +1,7 @@
 /**
  * RegisterPage — name, email, password, confirm password.
- * Creates Firestore user doc with role: "user" on success.
+ * Sends verification email after registration.
+ * Shows verification sent screen instead of navigating away.
  */
 
 import { useState } from 'react'
@@ -14,17 +15,14 @@ import Alert from '@/components/ui/Alert'
 // ── Password strength checker ─────────────────────────────────────────────────
 function getPasswordStrength(password) {
   if (!password) return { score: 0, label: '', color: '', checks: [] }
-
   const checks = [
-    { label: 'At least 8 characters',          ok: password.length >= 8 },
-    { label: 'Uppercase letter (A–Z)',          ok: /[A-Z]/.test(password) },
-    { label: 'Lowercase letter (a–z)',          ok: /[a-z]/.test(password) },
-    { label: 'Number (0–9)',                    ok: /[0-9]/.test(password) },
-    { label: 'Special character (!@#$%^&*…)',  ok: /[^A-Za-z0-9]/.test(password) },
+    { label: 'At least 8 characters',         ok: password.length >= 8 },
+    { label: 'Uppercase letter (A–Z)',         ok: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter (a–z)',         ok: /[a-z]/.test(password) },
+    { label: 'Number (0–9)',                   ok: /[0-9]/.test(password) },
+    { label: 'Special character (!@#$%^&*…)', ok: /[^A-Za-z0-9]/.test(password) },
   ]
-
   const score = checks.filter(c => c.ok).length
-
   const levels = [
     { label: '',            color: 'bg-gray-200'   },
     { label: 'Very Weak',   color: 'bg-red-500'    },
@@ -33,48 +31,33 @@ function getPasswordStrength(password) {
     { label: 'Strong',      color: 'bg-blue-500'   },
     { label: 'Very Strong', color: 'bg-green-500'  },
   ]
-
   return { score, ...levels[score], checks }
 }
 
 function PasswordStrengthMeter({ password }) {
   const { score, label, color, checks } = getPasswordStrength(password)
   if (!password) return null
-
   return (
     <div className="mt-2 space-y-2">
-      {/* Strength bar segments */}
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map(i => (
-          <div
-            key={i}
-            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-              i <= score ? color : 'bg-gray-200'
-            }`}
-          />
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300
+            ${i <= score ? color : 'bg-gray-200'}`} />
         ))}
       </div>
-
-      {/* Strength label */}
       <p className={`text-xs font-medium ${
-        score <= 1 ? 'text-red-500'    :
-        score === 2 ? 'text-orange-500' :
-        score === 3 ? 'text-yellow-600' :
-        score === 4 ? 'text-blue-500'   : 'text-green-600'
-      }`}>
-        {label}
-      </p>
-
-      {/* Requirements checklist */}
+        score <= 1 ? 'text-red-500' : score === 2 ? 'text-orange-500' :
+        score === 3 ? 'text-yellow-600' : score === 4 ? 'text-blue-500' : 'text-green-600'
+      }`}>{label}</p>
       <ul className="space-y-0.5">
         {checks.map((c, i) => (
           <li key={i} className={`flex items-center gap-1.5 text-xs ${c.ok ? 'text-green-600' : 'text-gray-400'}`}>
             {c.ok ? (
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             ) : (
-              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
             )}
@@ -90,9 +73,9 @@ export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' })
-  const [error, setError]           = useState('')
-  const [loading, setLoading]       = useState(false)
+  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirm: '' })
+  const [error, setError]                 = useState('')
+  const [loading, setLoading]             = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
@@ -101,21 +84,14 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-
-    if (form.password !== form.confirm) {
-      return setError('Passwords do not match.')
-    }
-    if (form.password.length < 8) {
-      return setError('Password must be at least 8 characters.')
-    }
-    if (score < 3) {
-      return setError('Password is too weak. Add uppercase, lowercase, numbers and a special character.')
-    }
+    if (form.password !== form.confirm) return setError('Passwords do not match.')
+    if (form.password.length < 8) return setError('Password must be at least 8 characters.')
+    if (score < 3) return setError('Password is too weak. Add uppercase, lowercase, numbers and a special character.')
 
     setLoading(true)
     try {
       await register(form.email, form.password, form.name)
-      navigate('/')
+      navigate('/verify-email')  // go to dedicated verification page
     } catch (err) {
       setError(getAuthErrorMessage(err.code))
     } finally {
@@ -136,6 +112,7 @@ export default function RegisterPage() {
     }
   }
 
+  // ── Registration form ─────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -161,56 +138,27 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Full name"
-              type="text"
-              value={form.name}
-              onChange={set('name')}
-              placeholder="Juan Miguel"
-              required
-              autoComplete="name"
-            />
-            <Input
-              label="Email address"
-              type="email"
-              value={form.email}
-              onChange={set('email')}
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-            />
+            <Input label="Full name" type="text" value={form.name}
+              onChange={set('name')} placeholder="Juan Miguel"
+              required autoComplete="name" />
+            <Input label="Email address" type="email" value={form.email}
+              onChange={set('email')} placeholder="you@example.com"
+              required autoComplete="email" />
 
             {/* Password + strength meter */}
             <div>
-              <Input
-                label="Password"
-                type="password"
-                value={form.password}
-                onChange={set('password')}
-                placeholder="Min. 8 characters"
-                required
-                autoComplete="new-password"
-              />
+              <Input label="Password" type="password" value={form.password}
+                onChange={set('password')} placeholder="Min. 8 characters"
+                required autoComplete="new-password" />
               <PasswordStrengthMeter password={form.password} />
             </div>
 
-            <Input
-              label="Confirm password"
-              type="password"
-              value={form.confirm}
-              onChange={set('confirm')}
-              placeholder="Repeat your password"
-              required
-              autoComplete="new-password"
-            />
+            <Input label="Confirm password" type="password" value={form.confirm}
+              onChange={set('confirm')} placeholder="Repeat your password"
+              required autoComplete="new-password" />
 
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-full mt-2"
-              loading={loading}
-              disabled={loading || score < 3}
-            >
+            <Button type="submit" variant="primary" className="w-full mt-2"
+              loading={loading} disabled={loading || score < 3}>
               Create account
             </Button>
           </form>
@@ -226,13 +174,12 @@ export default function RegisterPage() {
           </div>
 
           {/* Google */}
-          <button
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
+          <button onClick={handleGoogle} disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 border border-gray-300
+                       rounded py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50
+                       transition-colors disabled:opacity-50">
             {googleLoading ? (
-              <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>

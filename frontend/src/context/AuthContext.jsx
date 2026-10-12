@@ -12,6 +12,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   sendPasswordResetEmail,
+  sendEmailVerification,
   updateProfile,
 } from 'firebase/auth'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
@@ -41,6 +42,13 @@ export function AuthProvider({ children }) {
     // Update profile with display name
     await updateProfile(user, { displayName })
 
+    // Send email verification
+    try {
+      await sendEmailVerification(user)
+    } catch (err) {
+      console.warn('Could not send verification email:', err.message)
+    }
+
     // Create user document in Firestore — retry up to 3 times
     const userData = {
       uid:            user.uid,
@@ -51,6 +59,7 @@ export function AuthProvider({ children }) {
       createdAt:      new Date(),
       disabled:       false,
       detectionCount: 0,
+      emailVerified:  false,
     }
 
     for (let attempt = 1; attempt <= 3; attempt++) {
@@ -60,8 +69,6 @@ export function AuthProvider({ children }) {
       } catch (err) {
         console.warn(`Firestore write attempt ${attempt} failed:`, err.message)
         if (attempt === 3) {
-          // Non-fatal — user is authenticated, Firestore write failed
-          // Will be created on next login via loginWithGoogle path
           console.error('Could not create user document after 3 attempts.')
         } else {
           await new Promise(r => setTimeout(r, 1000 * attempt))
@@ -70,6 +77,14 @@ export function AuthProvider({ children }) {
     }
 
     return userCredential
+  }
+
+  // Resend verification email
+  async function resendVerificationEmail() {
+    const user = auth.currentUser
+    if (user && !user.emailVerified) {
+      await sendEmailVerification(user)
+    }
   }
 
   // Login with email/password
@@ -206,6 +221,7 @@ export function AuthProvider({ children }) {
     loginWithGoogle,
     logout,
     resetPassword,
+    resendVerificationEmail,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

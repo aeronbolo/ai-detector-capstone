@@ -178,7 +178,7 @@ export default function ImageUploadCard() {
       setStage('error')
       const msg = err.message || 'Detection failed. Please try again.'
       setError(msg.includes('temporarily') || msg.includes('503')
-        ? 'The analysis service is currently busy. Please try again in a moment.'
+        ? 'Analysis service is temporarily unavailable. Please try again in a few minutes.'
         : msg)
     }
   }

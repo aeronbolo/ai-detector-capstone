@@ -14,7 +14,7 @@ import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
 
 export default function LoginPage() {
-  const { login, loginWithGoogle, currentUser, userDoc, userDocLoading } = useAuth()
+  const { login, loginWithGoogle, currentUser, userDoc, userDocLoading, resendVerificationEmail } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail]                   = useState('')
@@ -23,6 +23,9 @@ export default function LoginPage() {
   const [loading, setLoading]               = useState(false)
   const [googleLoading, setGoogleLoading]   = useState(false)
   const [pendingRedirect, setPendingRedirect] = useState(false)
+  const [unverified, setUnverified]         = useState(false)
+  const [resendLoading, setResendLoading]   = useState(false)
+  const [resendSent, setResendSent]         = useState(false)
 
   // ── After login, wait for userDoc to load then redirect ───────────────────
   // This avoids the race condition where navigate('/admin') fires before
@@ -48,13 +51,37 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    setUnverified(false)
     setLoading(true)
     try {
-      await login(email, password)
-      setPendingRedirect(true)   // trigger useEffect to wait for userDoc
+      const result = await login(email, password)
+      // Only block unverified for NEW accounts (registered after verification was added)
+      // Existing accounts (registered before) are allowed through
+      // We detect "new" accounts by checking if createdAt is recent (after Nov 2026)
+      const createdAt = result.user.metadata?.creationTime
+      const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
+
+      if (!result.user.emailVerified && isNewAccount) {
+        setUnverified(true)
+        setLoading(false)
+        return
+      }
+      setPendingRedirect(true)
     } catch (err) {
       setError(getAuthErrorMessage(err.code))
       setLoading(false)
+    }
+  }
+
+  async function handleResendVerification() {
+    setResendLoading(true)
+    try {
+      await resendVerificationEmail()
+      setResendSent(true)
+    } catch (err) {
+      setError('Failed to send verification email. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -100,6 +127,38 @@ export default function LoginPage() {
         <div className="bg-white rounded-lg shadow-card p-8">
           {error && (
             <Alert type="error" message={error} onClose={() => setError('')} className="mb-5" />
+          )}
+
+          {/* ── Email not verified banner ── */}
+          {unverified && (
+            <div className="mb-5 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-yellow-800">Email not verified</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Please check your inbox and click the verification link before signing in.
+                  </p>
+                  {resendSent ? (
+                    <p className="text-xs text-green-600 font-medium mt-2">
+                      ✓ Verification email sent! Check your inbox.
+                    </p>
+                  ) : (
+                    <button
+                      onClick={handleResendVerification}
+                      disabled={resendLoading}
+                      className="text-xs text-yellow-700 underline font-medium mt-2
+                                 hover:text-yellow-900 transition-colors disabled:opacity-50"
+                    >
+                      {resendLoading ? 'Sending…' : 'Resend verification email'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">

@@ -13,6 +13,7 @@ import { Suspense, lazy } from 'react'
 const LoginPage = lazy(() => import('@/features/auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/features/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('@/features/auth/ForgotPasswordPage'))
+const VerifyEmailPage    = lazy(() => import('@/features/auth/VerifyEmailPage'))
 
 // Public/protected pages
 const LandingPage = lazy(() => import('@/features/home/LandingPage'))
@@ -39,7 +40,7 @@ function LoadingFallback() {
   )
 }
 
-// Protected route wrapper — requires authentication
+// Protected route wrapper — requires authentication + verified email (new accounts only)
 function ProtectedRoute({ children }) {
   const { currentUser, loading, userDocLoading } = useAuth()
 
@@ -49,6 +50,13 @@ function ProtectedRoute({ children }) {
 
   if (!currentUser) {
     return <Navigate to="/login" replace />
+  }
+
+  // Only block NEW unverified accounts (registered after Nov 2026)
+  const createdAt = currentUser.metadata?.creationTime
+  const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
+  if (!currentUser.emailVerified && isNewAccount) {
+    return <Navigate to="/verify-email" replace />
   }
 
   return children
@@ -65,6 +73,13 @@ function AdminRoute({ children }) {
 
   if (!currentUser) {
     return <Navigate to="/login" replace />
+  }
+
+  // Block unverified email users — new accounts only (registered after Nov 2026)
+  const createdAt = currentUser.metadata?.creationTime
+  const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
+  if (!currentUser.emailVerified && isNewAccount) {
+    return <Navigate to="/verify-email" replace />
   }
 
   // Debug: log what role was found
@@ -89,16 +104,22 @@ function AdminRoute({ children }) {
 }
 
 // Public-only route — redirects authenticated users to home
+// Exception: unverified email users stay on register/login page
 function PublicOnlyRoute({ children }) {
   const { currentUser, userDoc, loading, userDocLoading } = useAuth()
 
-  // Wait for both so we redirect admin to /admin not /
   if (loading || userDocLoading) {
     return <LoadingFallback />
   }
 
   if (currentUser) {
-    // Redirect admin directly to /admin
+    // If NEW account and email not verified — let them stay on auth pages
+    const createdAt = currentUser.metadata?.creationTime
+    const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
+    if (!currentUser.emailVerified && isNewAccount) {
+      return children
+    }
+    // Verified or existing account — redirect normally
     return <Navigate to={userDoc?.role === 'admin' ? '/admin' : '/'} replace />
   }
 
@@ -129,6 +150,10 @@ export default function AppRouter() {
                 <RegisterPage />
               </PublicOnlyRoute>
             }
+          />
+          <Route
+            path="/verify-email"
+            element={<VerifyEmailPage />}
           />
           <Route
             path="/forgot-password"
