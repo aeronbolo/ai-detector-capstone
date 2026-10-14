@@ -227,18 +227,38 @@ export default function TrainModelPage() {
   const canTrain   = realFiles.length >= 1 && fakeFiles.length >= 1
   const progress   = stage === 'done' ? 100 : Math.round((currentEpoch / EPOCHS) * 100)
 
+  const [phase, setPhase] = useState('') // 'uploading' | 'preprocessing' | 'training' | 'saving'
+
   async function handleTrain() {
     if (!canTrain) return
     setStage('training')
     setVisibleEpochs([])
     setCurrentEpoch(0)
+
+    // ── Phase 1: Upload files to server ──────────────────────────────────────
+    setPhase('uploading')
+    const uploadDelay = Math.min(totalFiles * 2500, 15000)
+    await new Promise(r => setTimeout(r, uploadDelay))
+
+    // ── Phase 2: Preprocessing (resize, normalize) ────────────────────────────
+    setPhase('preprocessing')
+    await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000))
+
+    // ── Phase 3: Training epochs ──────────────────────────────────────────────
+    setPhase('training')
     for (let i = 0; i < EPOCHS; i++) {
-      await new Promise(r => setTimeout(r, 700 + Math.random() * 500))
+      const baseTime = i < 3 ? 6000 : i < 7 ? 9000 : 12000
+      const jitter   = Math.random() * 4000
+      await new Promise(r => setTimeout(r, baseTime + jitter))
       setCurrentEpoch(i + 1)
       setVisibleEpochs(prev => [...prev, i])
     }
-    await new Promise(r => setTimeout(r, 500))
+
+    // ── Phase 4: Saving model weights ─────────────────────────────────────────
+    setPhase('saving')
+    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000))
     setStage('done')
+    setPhase('')
   }
 
   function handleReset() {
@@ -247,6 +267,7 @@ export default function TrainModelPage() {
     setVisibleEpochs([])
     setRealFiles([])
     setFakeFiles([])
+    setPhase('')
   }
 
   return (
@@ -417,13 +438,24 @@ export default function TrainModelPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Training…
+                  {phase === 'uploading'     ? 'Uploading dataset…'
+                  : phase === 'preprocessing' ? 'Preprocessing data…'
+                  : phase === 'training'      ? `Training epoch ${currentEpoch}/${EPOCHS}…`
+                  : phase === 'saving'        ? 'Saving model weights…'
+                  : 'Training…'}
                 </span>
               )}
             </div>
 
             {/* Progress bar */}
             <div className="mb-1 flex justify-between text-xs text-gray-500">
-              <span>Epoch {currentEpoch} of {EPOCHS}</span>
+              <span>
+                {phase === 'uploading'      && '📤 Uploading dataset to server…'}
+                {phase === 'preprocessing'  && '⚙️ Preprocessing — resizing & normalizing…'}
+                {phase === 'training'       && `🧠 Training — Epoch ${currentEpoch} of ${EPOCHS}`}
+                {phase === 'saving'         && '💾 Saving model weights…'}
+                {!phase                     && `Epoch ${currentEpoch} of ${EPOCHS}`}
+              </span>
               <span>{progress}%</span>
             </div>
             <div className="w-full bg-white/10 rounded-full h-2 mb-6 overflow-hidden">
@@ -478,7 +510,14 @@ export default function TrainModelPage() {
                     isLast={i === EPOCHS - 1 && stage === 'done'}
                   />
                 ))}
-                {stage === 'training' && (
+                {stage === 'training' && phase !== 'training' && (
+                  <p className="text-xs font-mono mt-2">
+                    {phase === 'uploading'    && <span className="text-yellow-400 animate-pulse">▶ Uploading {totalFiles} files to training server…</span>}
+                    {phase === 'preprocessing' && <span className="text-yellow-400 animate-pulse">▶ Preprocessing images — resizing to 224×224, normalizing…</span>}
+                    {phase === 'saving'        && <span className="text-success animate-pulse">▶ Saving model weights to storage…</span>}
+                  </p>
+                )}
+                {stage === 'training' && phase === 'training' && (
                   <p className="text-xs text-accent font-mono animate-pulse mt-2">
                     ▶ Processing epoch {currentEpoch + 1}…
                   </p>
