@@ -227,7 +227,24 @@ export default function TrainModelPage() {
   const canTrain   = realFiles.length >= 1 && fakeFiles.length >= 1
   const progress   = stage === 'done' ? 100 : Math.round((currentEpoch / EPOCHS) * 100)
 
-  const [phase, setPhase] = useState('') // 'uploading' | 'preprocessing' | 'training' | 'saving'
+  const [phase, setPhase] = useState('')
+
+  function calcTrainingTime() {
+    const uploadMs     = totalFiles * 1000
+    const preprocessMs = totalFiles * 50
+    const trainingMs   = EPOCHS * totalFiles * 40
+    const savingMs     = 8000
+    return uploadMs + preprocessMs + trainingMs + savingMs
+  }
+
+  function formatTime(ms) {
+    const secs = Math.ceil(ms / 1000)
+    if (secs < 60)  return `~${secs} seconds`
+    const mins = Math.ceil(secs / 60)
+    if (mins < 60)  return `~${mins} minutes`
+    const hrs = (mins / 60).toFixed(1)
+    return `~${hrs} hours`
+  }
 
   async function handleTrain() {
     if (!canTrain) return
@@ -235,28 +252,24 @@ export default function TrainModelPage() {
     setVisibleEpochs([])
     setCurrentEpoch(0)
 
-    // ── Phase 1: Upload files to server ──────────────────────────────────────
     setPhase('uploading')
-    const uploadDelay = Math.min(totalFiles * 2500, 15000)
-    await new Promise(r => setTimeout(r, uploadDelay))
+    await new Promise(r => setTimeout(r, totalFiles * 1000))
 
-    // ── Phase 2: Preprocessing (resize, normalize) ────────────────────────────
     setPhase('preprocessing')
-    await new Promise(r => setTimeout(r, 3000 + Math.random() * 2000))
+    await new Promise(r => setTimeout(r, totalFiles * 50))
 
-    // ── Phase 3: Training epochs ──────────────────────────────────────────────
     setPhase('training')
     for (let i = 0; i < EPOCHS; i++) {
-      const baseTime = i < 3 ? 6000 : i < 7 ? 9000 : 12000
-      const jitter   = Math.random() * 4000
-      await new Promise(r => setTimeout(r, baseTime + jitter))
+      const base        = totalFiles * 40
+      const convergence = i < 3 ? 0.8 : i < 7 ? 1.0 : 1.15
+      const jitter      = Math.random() * (base * 0.1)
+      await new Promise(r => setTimeout(r, (base * convergence) + jitter))
       setCurrentEpoch(i + 1)
       setVisibleEpochs(prev => [...prev, i])
     }
 
-    // ── Phase 4: Saving model weights ─────────────────────────────────────────
     setPhase('saving')
-    await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000))
+    await new Promise(r => setTimeout(r, 8000 + Math.random() * 3000))
     setStage('done')
     setPhase('')
   }
@@ -392,6 +405,26 @@ export default function TrainModelPage() {
               <p className="text-xs text-gray-500 text-center mb-4">
                 Add at least 1 Real and 1 Fake {isCNN ? 'image' : 'video'} to begin training
               </p>
+            )}
+
+            {canTrain && (
+              <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <p className="text-xs text-gray-400">
+                      Estimated training time:{' '}
+                      <span className="text-accent font-semibold">{formatTime(calcTrainingTime())}</span>
+                    </p>
+                    <p className="text-xs text-gray-600 mt-0.5">
+                      {totalFiles} files × {EPOCHS} epochs · CPU · batch_size=32
+                    </p>
+                  </div>
+                  <div className="text-right text-xs text-gray-500">
+                    <p>Upload: {formatTime(totalFiles * 1000)}</p>
+                    <p>Per epoch: {formatTime(totalFiles * 40)}</p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* Train button */}
