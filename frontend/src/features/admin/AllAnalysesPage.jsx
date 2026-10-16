@@ -93,7 +93,7 @@ function DetailModal({ det, user, onClose }) {
             : 'bg-green-500/10 border border-green-500/20'
         }`}>
           <p className={`text-3xl font-extrabold ${isAI ? 'text-danger' : 'text-success'}`}>
-            {det.confidence}%
+            {Math.min(100, Math.round(det.confidence || 0))}%
           </p>
           <p className={`text-sm font-semibold mt-1 ${isAI ? 'text-danger' : 'text-success'}`}>
             {isAI ? '⚠ AI-Generated' : '✓ Authentic'}
@@ -106,7 +106,7 @@ function DetailModal({ det, user, onClose }) {
             { label: 'File name',      value: det.fileName || '—' },
             { label: 'File type',      value: det.fileType ? det.fileType.charAt(0).toUpperCase() + det.fileType.slice(1) : '—' },
             { label: 'Prediction',     value: det.label || '—' },
-            { label: 'Confidence',     value: det.confidence != null ? `${det.confidence}%` : '—' },
+            { label: 'Confidence',     value: det.confidence != null ? `${Math.min(100, Math.round(det.confidence))}%` : '—' },
             { label: 'Analysis time',  value: det.processingTimeMs ? `${(det.processingTimeMs / 1000).toFixed(1)} seconds` : '—' },
             { label: 'Model used',     value: getModelLabel(det.model) },
             { label: 'Analysed by',    value: user.displayName || '—' },
@@ -217,7 +217,7 @@ export default function AllAnalysesPage() {
           media:      d.fileName,
           type:       d.fileType,
           prediction: d.label,
-          confidence: `${d.confidence}%`,
+          confidence: d.confidence != null ? `${Math.min(100, Math.round(d.confidence))}%` : '—',
           reviewer:   'AI Detector',
           userName:   user.displayName,
           userEmail:  user.email,
@@ -338,7 +338,7 @@ export default function AllAnalysesPage() {
                           <PredictionBadge label={det.label === 'Real' ? 'Authentic' : det.label} />
                         </td>
                         <td className="px-5 py-4 text-gray-300 font-medium">
-                          {det.confidence != null ? `${Math.round(det.confidence)}%` : '—'}
+                          {det.confidence != null ? `${Math.min(100, Math.round(det.confidence))}%` : '—'}
                         </td>
                         <td className="px-5 py-4 text-gray-300">{user.displayName}</td>
                         <td className="px-5 py-4 text-gray-400 text-xs">{user.email}</td>

@@ -83,7 +83,7 @@ export default function HistoryTable({ items, onDeleted }) {
                     <Badge label={item.label} />
                   </td>
                   <td className="py-3 px-4 font-semibold text-primary">
-                    {item.confidence}%
+                    {item.confidence != null ? `${Math.min(100, Math.round(item.confidence))}%` : '—'}
                   </td>
                   <td className="py-3 px-4 text-gray-500">AI Detector</td>
                   <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
@@ -125,7 +125,7 @@ export default function HistoryTable({ items, onDeleted }) {
               <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                 <span className="capitalize">{item.fileType}</span>
                 <span>·</span>
-                <span className="font-semibold text-primary">{item.confidence}%</span>
+                <span className="font-semibold text-primary">{item.confidence != null ? `${Math.min(100, Math.round(item.confidence))}%` : '—'}</span>
                 <span>·</span>
                 <span>{formatDate(item.createdAt)}</span>
               </div>
