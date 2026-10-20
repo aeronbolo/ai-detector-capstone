@@ -114,9 +114,11 @@ export default function SubmitProjectPage() {
       // ── Get preview URL from TruthScan result ─────────────────────────────
       const previewUrl = result.image_url || result.heatmap_url || null
 
-      // ── Convert image to base64 fallback (images only, max 500KB) ─────────
+      // ── Always convert image to base64 for reliable teacher preview ────────
+      // base64 is stored in Firestore — no CDN expiry, no CORS issues
+      // Limit: 800KB file size to stay within Firestore 1MB doc limit
       let fileBase64 = null
-      if (fileType === 'image' && !previewUrl && file.size < 500 * 1024) {
+      if (fileType === 'image' && file.size < 800 * 1024) {
         try {
           fileBase64 = await new Promise((resolve, reject) => {
             const reader = new FileReader()
@@ -125,7 +127,7 @@ export default function SubmitProjectPage() {
             reader.readAsDataURL(file)
           })
         } catch {
-          // Non-critical
+          console.warn('base64 conversion failed')
         }
       }
 
@@ -139,8 +141,8 @@ export default function SubmitProjectPage() {
         description:     form.description,
         fileName:        file.name,
         fileType,
-        fileUrl:         previewUrl,      // TruthScan image or heatmap URL
-        fileBase64,                         // base64 fallback for small images
+        fileUrl:         previewUrl,      // TruthScan image or heatmap URL (may expire)
+        fileBase64,                         // base64 — reliable, no expiry, no CORS
         label:           result.label,
         confidence:      result.confidence,
         model:           result.model,
