@@ -102,10 +102,16 @@ export default function SubmitProjectPage() {
     try {
       setStage('analysing')
 
-      // ── Use heatmap as image preview (already hosted on TruthScan CDN) ─────
-      // heatmap_url contains the overlaid image which IS the submitted image
-      // with heatmap overlay — this is the best preview available for free
-      // Also try to get the original image_url from TruthScan
+      // ── Run AI detection first ──────────────────────────────────────────────
+      let result
+      if (fileType === 'image') {
+        result = await runImageDetection({ formData, detectionId })
+      } else {
+        result = await runVideoDetection({ formData, detectionId })
+      }
+      finish()
+
+      // ── Get preview URL from TruthScan result ─────────────────────────────
       const previewUrl = result.image_url || result.heatmap_url || null
 
       // ── Convert image to base64 fallback (images only, max 500KB) ─────────
@@ -122,15 +128,6 @@ export default function SubmitProjectPage() {
           // Non-critical
         }
       }
-
-      // ── Run AI detection ────────────────────────────────────────────────────
-      let result
-      if (fileType === 'image') {
-        result = await runImageDetection({ formData, detectionId })
-      } else {
-        result = await runVideoDetection({ formData, detectionId })
-      }
-      finish()
 
       // ── Save submission to Firestore ────────────────────────────────────────
       await saveSubmission({
