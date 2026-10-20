@@ -102,18 +102,24 @@ export default function SubmitProjectPage() {
     try {
       setStage('analysing')
 
-      // ── Convert image to base64 for teacher preview (images only, max 900KB) ─
+      // ── Use heatmap as image preview (already hosted on TruthScan CDN) ─────
+      // heatmap_url contains the overlaid image which IS the submitted image
+      // with heatmap overlay — this is the best preview available for free
+      // Also try to get the original image_url from TruthScan
+      const previewUrl = result.image_url || result.heatmap_url || null
+
+      // ── Convert image to base64 fallback (images only, max 500KB) ─────────
       let fileBase64 = null
-      if (fileType === 'image' && file.size < 900 * 1024) {
+      if (fileType === 'image' && !previewUrl && file.size < 500 * 1024) {
         try {
           fileBase64 = await new Promise((resolve, reject) => {
             const reader = new FileReader()
-            reader.onload = () => resolve(reader.result) // data:image/jpeg;base64,...
+            reader.onload = () => resolve(reader.result)
             reader.onerror = reject
             reader.readAsDataURL(file)
           })
         } catch {
-          // Non-critical — teacher just won't see preview
+          // Non-critical
         }
       }
 
@@ -136,8 +142,8 @@ export default function SubmitProjectPage() {
         description:     form.description,
         fileName:        file.name,
         fileType,
-        fileUrl:         result.image_url || null,  // TruthScan hosted image URL
-        fileBase64,                                   // base64 fallback for small images
+        fileUrl:         previewUrl,      // TruthScan image or heatmap URL
+        fileBase64,                         // base64 fallback for small images
         label:           result.label,
         confidence:      result.confidence,
         model:           result.model,

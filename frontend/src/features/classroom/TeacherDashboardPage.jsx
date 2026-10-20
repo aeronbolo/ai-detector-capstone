@@ -81,15 +81,19 @@ function SubmissionModal({ sub, student, onClose, onSaveRemark, saving }) {
         <div className="p-6 space-y-5">
 
           {/* File preview — image */}
-          {sub.fileType === 'image' && (sub.fileUrl || sub.fileBase64) && (
+          {sub.fileType === 'image' && (sub.fileUrl || sub.fileBase64 || sub.heatmapUrl) && (
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">
                 Submitted Image
+                {!sub.fileUrl && !sub.fileBase64 && sub.heatmapUrl && (
+                  <span className="ml-2 text-gray-300 normal-case font-normal">(with AI heatmap overlay)</span>
+                )}
               </p>
               <img
-                src={sub.fileUrl || sub.fileBase64}
+                src={sub.fileUrl || sub.fileBase64 || sub.heatmapUrl}
                 alt="submitted file"
                 className="w-full rounded-xl border border-gray-200 max-h-72 object-contain bg-gray-50"
+                onError={e => { e.target.style.display = 'none' }}
               />
             </div>
           )}
@@ -108,7 +112,7 @@ function SubmissionModal({ sub, student, onClose, onSaveRemark, saving }) {
           )}
 
           {/* No file available */}
-          {!sub.fileUrl && !sub.fileBase64 && (
+          {!sub.fileUrl && !sub.fileBase64 && !sub.heatmapUrl && (
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
               <p className="text-xs text-gray-400">
                 {sub.fileType === 'video'
