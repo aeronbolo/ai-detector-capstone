@@ -23,6 +23,9 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
       // Any authenticated user can create their own doc on registration
       allow create: if isAuthenticated() && request.auth.uid == userId;
+      // Allow reading user docs for login lookup (studentId/employeeId lookup)
+      // This is needed before authentication so we can find email by student/employee ID
+      allow read: if true;
     }
 
     // ── detections ─────────────────────────────────────────────────────────

@@ -35,21 +35,18 @@ export function AuthProvider({ children }) {
   const [userDocLoading, setUserDocLoading] = useState(true)
 
   // Register a new user and create Firestore user document
-  async function register(email, password, displayName, { role = 'user', studentId = null, classId = null, teacherId = null } = {}) {
+  async function register(email, password, displayName, { role = 'user', studentId = null, classId = null, teacherId = null, employeeId = null } = {}) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
-    // Update profile with display name
     await updateProfile(user, { displayName })
 
-    // Send email verification
     try {
       await sendEmailVerification(user)
     } catch (err) {
       console.warn('Could not send verification email:', err.message)
     }
 
-    // Create user document in Firestore — retry up to 3 times
     const userData = {
       uid:            user.uid,
       email:          user.email,
@@ -61,6 +58,7 @@ export function AuthProvider({ children }) {
       detectionCount: 0,
       emailVerified:  false,
       studentId:      studentId || null,
+      employeeId:     employeeId || null,
       classId:        classId || null,
       teacherId:      teacherId || null,
     }

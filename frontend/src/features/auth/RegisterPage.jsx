@@ -92,6 +92,13 @@ export default function RegisterPage() {
     if (form.password.length < 8) return setError('Password must be at least 8 characters.')
     if (score < 3) return setError('Password is too weak. Add uppercase, lowercase, numbers and a special character.')
 
+    if (form.role === 'student' && !form.studentId?.trim()) {
+      return setError('Student ID is required.')
+    }
+    if (form.role === 'teacher' && !form.employeeId?.trim()) {
+      return setError('Employee ID is required.')
+    }
+
     // If a student supplied a class code, validate it before creating the account
     let classId = null
     let teacherId = null
@@ -114,7 +121,8 @@ export default function RegisterPage() {
     try {
       const userCredential = await register(form.email, form.password, form.name, {
         role: form.role,
-        studentId: form.role === 'student' ? form.studentId : null,
+        studentId:  form.role === 'student' ? form.studentId  : null,
+        employeeId: form.role === 'teacher' ? form.employeeId : null,
         classId,
         teacherId,
       })
@@ -208,9 +216,9 @@ export default function RegisterPage() {
 
             {/* Student ID — shown for students */}
             {form.role === 'student' && (
-              <Input label="Student ID" value={form.studentId || ''}
+              <Input label="Student ID " value={form.studentId || ''}
                 onChange={e => setForm(f => ({ ...f, studentId: e.target.value }))}
-                placeholder="e.g. 2024-00001" />
+                placeholder="e.g. 2022-00001" required />
             )}
 
             {/* Class code — shown for students */}
@@ -226,9 +234,9 @@ export default function RegisterPage() {
 
             {/* Employee ID — shown for teachers */}
             {form.role === 'teacher' && (
-              <Input label="Employee ID (optional)" value={form.employeeId || ''}
+              <Input label="Employee ID" value={form.employeeId || ''}
                 onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
-                placeholder="e.g. EMP-12345" />
+                placeholder="e.g. EMP-12345" required />
             )}
 
             {/* Password + strength meter */}

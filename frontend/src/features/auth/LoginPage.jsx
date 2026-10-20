@@ -1,87 +1,156 @@
 /**
- * LoginPage — email/password + Google sign-in.
- * After login:
- *   role = "admin" → /admin
- *   role = "user"  → /
+ * LoginPage — Role-based login with two tabs (Student / Teacher).
+ * Admin login is at /login/admin (hidden URL).
  */
 
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { getAuthErrorMessage } from './authService'
+import {
+  collection, query, where, limit, getDocs
+} from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
 
+// Look up email by studentId
+async function getEmailByStudentId(studentId) {
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('studentId', '==', studentId.trim()),
+      limit(1)
+    )
+    const snap = await getDocs(q)
+    if (snap.empty) return null
+    const data = snap.docs[0].data()
+    if (data.role !== 'student') return null
+    return data.email
+  } catch (err) {
+    console.error('getEmailByStudentId error:', err)
+    throw err
+  }
+}
+
+// Look up email by employeeId
+async function getEmailByEmployeeId(employeeId) {
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('employeeId', '==', employeeId.trim()),
+      limit(1)
+    )
+    const snap = await getDocs(q)
+    if (snap.empty) return null
+    const data = snap.docs[0].data()
+    if (data.role !== 'teacher') return null
+    return data.email
+  } catch (err) {
+    console.error('getEmailByEmployeeId error:', err)
+    throw err
+  }
+}
+
+// Normal tabs — student and teacher only
+const MAIN_TABS = [
+  { key: 'student', label: '🎓 Student', idLabel: 'Student Number', idPlaceholder: 'e.g. 2022-00001' },
+  { key: 'teacher', label: '👨‍🏫 Teacher', idLabel: 'Employee ID',    idPlaceholder: 'e.g. EMP-12345'  },
+]
+
 export default function LoginPage() {
-  const { login, loginWithGoogle, currentUser, userDoc, userDocLoading, resendVerificationEmail } = useAuth()
-  const navigate = useNavigate()
+  const { login, loginWithGoogle, currentUser, userDoc, userDocLoading,
+          resendVerificationEmail } = useAuth()
+  const navigate   = useNavigate()
+  const { role: urlRole } = useParams()   // 'admin' if at /login/admin
 
-  const [email, setEmail]                   = useState('')
-  const [password, setPassword]             = useState('')
-  const [error, setError]                   = useState('')
-  const [loading, setLoading]               = useState(false)
-  const [googleLoading, setGoogleLoading]   = useState(false)
+  const isAdminPage = urlRole === 'admin'
+
+  const [activeTab, setActiveTab]             = useState(isAdminPage ? 'admin' : 'student')
+  const [identifier, setIdentifier]           = useState('')
+  const [password, setPassword]               = useState('')
+  const [error, setError]                     = useState('')
+  const [loading, setLoading]                 = useState(false)
+  const [googleLoading, setGoogleLoading]     = useState(false)
   const [pendingRedirect, setPendingRedirect] = useState(false)
-  const [unverified, setUnverified]         = useState(false)
-  const [resendLoading, setResendLoading]   = useState(false)
-  const [resendSent, setResendSent]         = useState(false)
+  const [unverified, setUnverified]           = useState(false)
+  const [resendLoading, setResendLoading]     = useState(false)
+  const [resendSent, setResendSent]           = useState(false)
 
-  // ── After login, wait for userDoc to load then redirect ───────────────────
-  // This avoids the race condition where navigate('/admin') fires before
-  // AdminRoute has finished loading userDoc from Firestore.
+  // After login wait for userDoc then redirect
   useEffect(() => {
     if (!pendingRedirect) return
-    if (userDocLoading) return   // still loading — wait
+    if (userDocLoading) return
 
-    // userDoc is now loaded (or null if Firestore is blocked)
     const role = userDoc?.role
       || localStorage.getItem(`role_${currentUser?.uid}`)
       || 'user'
 
-    // Cache the role so AdminRoute works even if Firestore is blocked
     if (role === 'admin' && currentUser?.uid) {
       localStorage.setItem(`role_${currentUser.uid}`, 'admin')
     }
 
-    navigate(role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : role === 'student' ? '/student' : '/', { replace: true })
+    if (role === 'admin')        navigate('/admin',   { replace: true })
+    else if (role === 'teacher') navigate('/teacher', { replace: true })
+    else if (role === 'student') navigate('/student', { replace: true })
+    else                         navigate('/',        { replace: true })
+
     setPendingRedirect(false)
   }, [pendingRedirect, userDocLoading, userDoc, currentUser, navigate])
+
+  function handleTabChange(tab) {
+    setActiveTab(tab)
+    setIdentifier('')
+    setPassword('')
+    setError('')
+    setUnverified(false)
+    setResendSent(false)
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
     setUnverified(false)
     setLoading(true)
-    try {
-      const result = await login(email, password)
-      // Only block unverified for NEW accounts (registered after verification was added)
-      // Existing accounts (registered before) are allowed through
-      // We detect "new" accounts by checking if createdAt is recent (after Nov 2026)
-      const createdAt = result.user.metadata?.creationTime
-      const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
 
+    try {
+      let emailToUse = identifier.trim()
+
+      if (activeTab === 'student') {
+        const found = await getEmailByStudentId(identifier)
+        if (!found) {
+          setError('No student account found with that student number.')
+          setLoading(false)
+          return
+        }
+        emailToUse = found
+      } else if (activeTab === 'teacher') {
+        const found = await getEmailByEmployeeId(identifier)
+        if (!found) {
+          setError('No teacher account found with that employee ID.')
+          setLoading(false)
+          return
+        }
+        emailToUse = found
+      }
+      // admin: emailToUse stays as typed email
+
+      const result = await login(emailToUse, password)
+
+      // Check email verification for new accounts
+      const createdAt    = result.user.metadata?.creationTime
+      const isNewAccount = createdAt && new Date(createdAt) > new Date('2026-11-01')
       if (!result.user.emailVerified && isNewAccount) {
         setUnverified(true)
         setLoading(false)
         return
       }
+
       setPendingRedirect(true)
     } catch (err) {
       setError(getAuthErrorMessage(err.code))
       setLoading(false)
-    }
-  }
-
-  async function handleResendVerification() {
-    setResendLoading(true)
-    try {
-      await resendVerificationEmail()
-      setResendSent(true)
-    } catch (err) {
-      setError('Failed to send verification email. Please try again.')
-    } finally {
-      setResendLoading(false)
     }
   }
 
@@ -97,18 +166,32 @@ export default function LoginPage() {
     }
   }
 
+  async function handleResendVerification() {
+    setResendLoading(true)
+    try {
+      await resendVerificationEmail()
+      setResendSent(true)
+    } catch {
+      setError('Failed to resend verification email.')
+    } finally {
+      setResendLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        {/* Waiting for role check */}
+
+        {/* Loading overlay */}
         {pendingRedirect && (
-          <div className="flex items-center justify-center min-h-screen fixed inset-0 bg-gray-50 z-50">
+          <div className="fixed inset-0 bg-gray-50 z-50 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
               <p className="text-gray-500 text-sm">Signing you in…</p>
             </div>
           </div>
         )}
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
@@ -120,118 +203,159 @@ export default function LoginPage() {
             </div>
             <span className="text-2xl font-bold text-primary">AI Detector</span>
           </div>
-          <p className="text-gray-500 text-sm">Sign in to your account</p>
+          <p className="text-gray-500 text-sm">
+            {isAdminPage ? 'Administrator Access' : 'Sign in to your account'}
+          </p>
         </div>
 
         {/* Card */}
         <div className="bg-white rounded-lg shadow-card p-8">
-          {error && (
-            <Alert type="error" message={error} onClose={() => setError('')} className="mb-5" />
+
+          {/* Tabs — only for main login (not admin page) */}
+          {!isAdminPage && (
+            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
+              {MAIN_TABS.map(tab => (
+                <button key={tab.key} type="button"
+                  onClick={() => handleTabChange(tab.key)}
+                  className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all
+                    ${activeTab === tab.key
+                      ? 'bg-white shadow text-primary'
+                      : 'text-gray-500 hover:text-gray-700'}`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           )}
 
-          {/* ── Email not verified banner ── */}
-          {unverified && (
-            <div className="mb-5 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <svg className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-yellow-800">Email not verified</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Please check your inbox and click the verification link before signing in.
-                  </p>
-                  {resendSent ? (
-                    <p className="text-xs text-green-600 font-medium mt-2">
-                      ✓ Verification email sent! Check your inbox.
-                    </p>
-                  ) : (
-                    <button
-                      onClick={handleResendVerification}
-                      disabled={resendLoading}
-                      className="text-xs text-yellow-700 underline font-medium mt-2
-                                 hover:text-yellow-900 transition-colors disabled:opacity-50"
-                    >
-                      {resendLoading ? 'Sending…' : 'Resend verification email'}
-                    </button>
-                  )}
-                </div>
+          {/* Admin page header */}
+          {isAdminPage && (
+            <div className="flex items-center gap-3 mb-6 p-3 bg-primary/5 border
+                            border-primary/10 rounded-lg">
+              <span className="text-2xl">🔑</span>
+              <div>
+                <p className="text-sm font-semibold text-primary">Admin Login</p>
+                <p className="text-xs text-gray-400">Restricted access — authorized personnel only</p>
               </div>
             </div>
           )}
 
+          {/* Errors */}
+          {error && (
+            <Alert type="error" message={error} onClose={() => setError('')} className="mb-5" />
+          )}
+
+          {/* Unverified banner */}
+          {unverified && (
+            <div className="mb-5 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm font-semibold text-yellow-800">Email not verified</p>
+              <p className="text-xs text-yellow-700 mt-1">
+                Check your inbox and click the verification link before signing in.
+              </p>
+              {resendSent ? (
+                <p className="text-xs text-green-600 font-medium mt-2">✓ Verification email sent!</p>
+              ) : (
+                <button onClick={handleResendVerification} disabled={resendLoading}
+                  className="text-xs text-yellow-700 underline font-medium mt-2
+                             hover:text-yellow-900 disabled:opacity-50">
+                  {resendLoading ? 'Sending…' : 'Resend verification email'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label="Email address"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              label={
+                activeTab === 'student' ? 'Student Number' :
+                activeTab === 'teacher' ? 'Employee ID' : 'Email Address'
+              }
+              type={activeTab === 'admin' || isAdminPage ? 'email' : 'text'}
+              value={identifier}
+              onChange={e => setIdentifier(e.target.value)}
+              placeholder={
+                activeTab === 'student' ? 'e.g. 2022-00001' :
+                activeTab === 'teacher' ? 'e.g. EMP-12345' : 'admin@example.com'
+              }
               required
-              autoComplete="email"
+              autoComplete={activeTab === 'admin' || isAdminPage ? 'email' : 'username'}
             />
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
-
-            <div className="flex justify-end">
-              <Link to="/forgot-password" className="text-sm text-accent hover:text-accent-dark transition-colors">
-                Forgot password?
-              </Link>
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+              <div className="flex justify-end mt-1">
+                <Link to="/forgot-password"
+                  className="text-xs text-accent hover:text-accent-dark transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
             </div>
 
             <Button type="submit" variant="primary" className="w-full" loading={loading}>
-              Sign in
+              {isAdminPage
+                ? 'Sign in as Administrator'
+                : `Sign in as ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
             </Button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-3 bg-white text-gray-400">or continue with</span>
-            </div>
-          </div>
-
-          {/* Google */}
-          <button
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            {googleLoading ? (
-              <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-              </svg>
-            )}
-            Sign in with Google
-          </button>
+          {/* Google — admin page only */}
+          {isAdminPage && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-200" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-3 bg-white text-gray-400">or continue with</span>
+                </div>
+              </div>
+              <button onClick={handleGoogle} disabled={googleLoading}
+                className="w-full flex items-center justify-center gap-3 border border-gray-300
+                           rounded py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50
+                           transition-colors disabled:opacity-50">
+                {googleLoading ? (
+                  <svg className="animate-spin h-4 w-4 text-gray-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                )}
+                Sign in with Google
+              </button>
+            </>
+          )}
         </div>
 
-        <p className="text-center text-sm text-gray-500 mt-6">
-          Don't have an account?{' '}
-          <Link to="/register" className="text-accent font-medium hover:text-accent-dark transition-colors">
-            Sign up
-          </Link>
-        </p>
+        {/* Back to main login from admin page */}
+        {isAdminPage ? (
+          <p className="text-center text-sm text-gray-400 mt-6">
+            <Link to="/login" className="hover:text-gray-600 transition-colors">
+              ← Back to main login
+            </Link>
+          </p>
+        ) : (
+          <p className="text-center text-sm text-gray-500 mt-6">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-accent font-medium hover:text-accent-dark transition-colors">
+              Sign up
+            </Link>
+          </p>
+        )}
       </div>
     </div>
   )
 }
+

@@ -154,6 +154,14 @@ export default function AppRouter() {
             }
           />
           <Route
+            path="/login/:role"
+            element={
+              <PublicOnlyRoute>
+                <LoginPage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
             path="/register"
             element={
               <PublicOnlyRoute>
