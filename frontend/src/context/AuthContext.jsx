@@ -35,7 +35,7 @@ export function AuthProvider({ children }) {
   const [userDocLoading, setUserDocLoading] = useState(true)
 
   // Register a new user and create Firestore user document
-  async function register(email, password, displayName) {
+  async function register(email, password, displayName, { role = 'user', studentId = null, classId = null, teacherId = null } = {}) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
@@ -55,11 +55,14 @@ export function AuthProvider({ children }) {
       email:          user.email,
       displayName:    displayName || '',
       photoURL:       user.photoURL || null,
-      role:           'user',
+      role:           role || 'user',
       createdAt:      new Date(),
       disabled:       false,
       detectionCount: 0,
       emailVerified:  false,
+      studentId:      studentId || null,
+      classId:        classId || null,
+      teacherId:      teacherId || null,
     }
 
     for (let attempt = 1; attempt <= 3; attempt++) {

@@ -59,35 +59,76 @@ export default function Navbar() {
 
             {/* ── Desktop nav links ── */}
             <div className="hidden md:flex items-center gap-10">
-              <Link
-                to="/"
-                className={`text-sm transition-colors ${
-                  isActive('/') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary font-normal'
-                }`}
-              >
-                Analyze
-              </Link>
 
-              {/* History — always visible so guests see it (redirects to login) */}
-              <Link
-                to={currentUser ? '/history' : '/login'}
-                className={`text-sm transition-colors ${
-                  isActive('/history') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary font-normal'
-                }`}
-              >
-                History
-              </Link>
+              {/* Analyze and History — only for non-student, non-teacher users */}
+              {(!currentUser || (userDoc?.role !== 'student' && userDoc?.role !== 'teacher')) && (
+                <>
+                  <Link to="/"
+                    className={`text-sm transition-colors ${
+                      isActive('/') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary font-normal'
+                    }`}>
+                    Analyze
+                  </Link>
+                  <Link to={currentUser ? '/history' : '/login'}
+                    className={`text-sm transition-colors ${
+                      isActive('/history') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary font-normal'
+                    }`}>
+                    History
+                  </Link>
+                </>
+              )}
 
+              {/* Admin link */}
               {isAdmin && (
-                <Link
-                  to="/admin"
+                <Link to="/admin"
                   className={`text-sm font-medium px-3 py-1 rounded-full transition-colors ${
                     location.pathname.startsWith('/admin')
                       ? 'bg-accent text-white'
                       : 'bg-accent/10 text-accent hover:bg-accent/20'
-                  }`}
-                >
+                  }`}>
                   Admin
+                </Link>
+              )}
+
+              {/* Student links */}
+              {currentUser && userDoc?.role === 'student' && (
+                <>
+                  <Link to="/student"
+                    className={`text-sm transition-colors ${
+                      isActive('/student') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary'
+                    }`}>
+                    Dashboard
+                  </Link>
+                  <Link to="/submit"
+                    className={`text-sm transition-colors ${
+                      isActive('/submit') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary'
+                    }`}>
+                    Submit Project
+                  </Link>
+                  <Link to="/my-submissions"
+                    className={`text-sm transition-colors ${
+                      isActive('/my-submissions') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary'
+                    }`}>
+                    My Submissions
+                  </Link>
+                  {!userDoc?.classId && (
+                    <Link to="/join-class"
+                      className={`text-sm transition-colors ${
+                        isActive('/join-class') ? 'text-primary font-semibold' : 'text-gray-700 hover:text-primary'
+                      }`}>
+                      Join Class
+                    </Link>
+                  )}
+                </>
+              )}
+              {currentUser && userDoc?.role === 'teacher' && (
+                <Link to="/teacher"
+                  className={`text-sm font-medium px-3 py-1 rounded-full transition-colors ${
+                    location.pathname.startsWith('/teacher')
+                      ? 'bg-primary text-white'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}>
+                  My Classes
                 </Link>
               )}
 

@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { getAuthErrorMessage } from './authService'
+import { getClassByCode, joinClass } from '@/features/classroom/classroomService'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import Alert from '@/components/ui/Alert'
@@ -73,8 +74,9 @@ export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
-  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirm: '' })
+  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirm: '', role: 'student', studentId: '', classCode: '', employeeId: '' })
   const [error, setError]                 = useState('')
+  const [classCodeError, setClassCodeError] = useState('')
   const [loading, setLoading]             = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
 
@@ -84,13 +86,52 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    setClassCodeError('')
+    if (!form.role) return setError('Please select whether you are a student or teacher.')
     if (form.password !== form.confirm) return setError('Passwords do not match.')
     if (form.password.length < 8) return setError('Password must be at least 8 characters.')
     if (score < 3) return setError('Password is too weak. Add uppercase, lowercase, numbers and a special character.')
 
+    // If a student supplied a class code, validate it before creating the account
+    let classId = null
+    let teacherId = null
+    if (form.role === 'student' && form.classCode) {
+      try {
+        const cls = await getClassByCode(form.classCode)
+        if (!cls) {
+          setClassCodeError('No active class found with that code. Check with your teacher.')
+          return
+        }
+        classId = cls.classId
+        teacherId = cls.teacherId
+      } catch (err) {
+        setClassCodeError('Could not verify class code. Please try again.')
+        return
+      }
+    }
+
     setLoading(true)
     try {
-      await register(form.email, form.password, form.name)
+      const userCredential = await register(form.email, form.password, form.name, {
+        role: form.role,
+        studentId: form.role === 'student' ? form.studentId : null,
+        classId,
+        teacherId,
+      })
+
+      // If the student joined a class, add them to the class roster
+      if (form.role === 'student' && classId) {
+        try {
+          await joinClass(classId, userCredential.user.uid, {
+            displayName: form.name,
+            email: form.email,
+          })
+        } catch (err) {
+          // Non-critical — account is created; student can rejoin later
+          console.warn('Could not join class after registration:', err.message)
+        }
+      }
+
       navigate('/verify-email')  // go to dedicated verification page
     } catch (err) {
       setError(getAuthErrorMessage(err.code))
@@ -144,6 +185,51 @@ export default function RegisterPage() {
             <Input label="Email address" type="email" value={form.email}
               onChange={set('email')} placeholder="you@example.com"
               required autoComplete="email" />
+
+            {/* Role selection */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">I am a</label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'student', label: '🎓 Student' },
+                  { value: 'teacher', label: '👨‍🏫 Teacher' },
+                ].map(opt => (
+                  <button key={opt.value} type="button"
+                    onClick={() => { setForm(f => ({ ...f, role: opt.value })); setClassCodeError('') }}
+                    className={`py-2.5 rounded-lg text-sm font-medium border transition-all
+                      ${form.role === opt.value
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-gray-300 text-gray-600 hover:border-accent/50'}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Student ID — shown for students */}
+            {form.role === 'student' && (
+              <Input label="Student ID" value={form.studentId || ''}
+                onChange={e => setForm(f => ({ ...f, studentId: e.target.value }))}
+                placeholder="e.g. 2024-00001" />
+            )}
+
+            {/* Class code — shown for students */}
+            {form.role === 'student' && (
+              <div className="flex flex-col gap-1.5">
+                <Input label="Class Code (optional)" value={form.classCode || ''}
+                  onChange={e => { setForm(f => ({ ...f, classCode: e.target.value.toUpperCase() })); setClassCodeError('') }}
+                  placeholder="e.g. XK9P2R" />
+                {classCodeError && <p className="text-xs text-red-500">{classCodeError}</p>}
+                <p className="text-xs text-gray-400">Ask your teacher for the class code. You can join later if you don't have one yet.</p>
+              </div>
+            )}
+
+            {/* Employee ID — shown for teachers */}
+            {form.role === 'teacher' && (
+              <Input label="Employee ID (optional)" value={form.employeeId || ''}
+                onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
+                placeholder="e.g. EMP-12345" />
+            )}
 
             {/* Password + strength meter */}
             <div>

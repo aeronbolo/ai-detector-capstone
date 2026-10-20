@@ -127,7 +127,7 @@ async def detect_image_truthscan(
             logger.info(f"TruthScan image job submitted: {job_id}")
 
         # ── Poll until done ───────────────────────────────────────────────────
-        result = await _poll_image(job_id, _IMAGE_TIMEOUT)
+        result = await _poll_image(job_id, _IMAGE_TIMEOUT, file_url)
         return result
 
     except Exception as e:
@@ -135,7 +135,7 @@ async def detect_image_truthscan(
         return None
 
 
-async def _poll_image(job_id: str, timeout: int) -> dict | None:
+async def _poll_image(job_id: str, timeout: int, image_url: str = None) -> dict | None:
     """Poll /query until status == done, then normalise the result."""
     elapsed = 0
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -186,6 +186,7 @@ async def _poll_image(job_id: str, timeout: int) -> dict | None:
                 "confidence":       round(confidence, 1),
                 "model":            "truthscan",
                 "heatmap_url":      heatmap_url,
+                "image_url":        image_url,
                 "analysis_details": analysis,
                 "warnings":         details.get("warnings", []),
                 "raw":              data,

@@ -44,7 +44,7 @@ export default function LoginPage() {
       localStorage.setItem(`role_${currentUser.uid}`, 'admin')
     }
 
-    navigate(role === 'admin' ? '/admin' : '/', { replace: true })
+    navigate(role === 'admin' ? '/admin' : role === 'teacher' ? '/teacher' : role === 'student' ? '/student' : '/', { replace: true })
     setPendingRedirect(false)
   }, [pendingRedirect, userDocLoading, userDoc, currentUser, navigate])
 

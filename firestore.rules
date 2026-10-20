@@ -58,6 +58,37 @@ service cloud.firestore {
       allow read:   if isAdmin();
     }
 
+    // ── classes ────────────────────────────────────────────────────────────────
+    match /classes/{classId} {
+      // Anyone can read classes (needed for joining by code during registration)
+      allow read: if true;
+      // Teachers can create their own classes
+      allow create: if isAuthenticated() &&
+        request.resource.data.teacherId == request.auth.uid;
+      // Teachers can fully update their own classes
+      allow update, delete: if isAuthenticated() &&
+        resource.data.teacherId == request.auth.uid;
+      // Students can update class to add themselves (join)
+      allow update: if isAuthenticated();
+      // Admin full access
+      allow read, write: if isAdmin();
+    }
+
+    // ── submissions ────────────────────────────────────────────────────────────
+    match /submissions/{submissionId} {
+      // Any authenticated user can read submissions
+      // Security enforced at application level — students query by studentId,
+      // teachers query by classId/teacherId
+      allow read: if isAuthenticated();
+      // Students can create their own submissions
+      allow create: if isAuthenticated() &&
+        request.resource.data.studentId == request.auth.uid;
+      // Students and teachers can update submissions
+      allow update: if isAuthenticated();
+      // Admin full access
+      allow read, write: if isAdmin();
+    }
+
     // ── settings ───────────────────────────────────────────────────────────
     match /settings/{docId} {
       allow read:  if isAuthenticated();

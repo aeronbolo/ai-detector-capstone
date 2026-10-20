@@ -28,6 +28,13 @@ const UserManagementPage       = lazy(() => import('@/features/admin/UserManagem
 const AlgorithmComparisonPage  = lazy(() => import('@/features/admin/AlgorithmComparisonPage'))
 const TrainModelPage           = lazy(() => import('@/features/admin/TrainModelPage'))
 
+// Classroom pages
+const SubmitProjectPage    = lazy(() => import('@/features/classroom/SubmitProjectPage'))
+const MySubmissionsPage    = lazy(() => import('@/features/classroom/MySubmissionsPage'))
+const TeacherDashboardPage = lazy(() => import('@/features/classroom/TeacherDashboardPage'))
+const JoinClassPage        = lazy(() => import('@/features/classroom/JoinClassPage'))
+const StudentDashboardPage = lazy(() => import('@/features/classroom/StudentDashboardPage'))
+
 // 404
 const NotFoundPage = lazy(() => import('@/features/NotFoundPage'))
 
@@ -119,8 +126,11 @@ function PublicOnlyRoute({ children }) {
     if (!currentUser.emailVerified && isNewAccount) {
       return children
     }
-    // Verified or existing account — redirect normally
-    return <Navigate to={userDoc?.role === 'admin' ? '/admin' : '/'} replace />
+    // Verified or existing account — redirect based on role
+    if (userDoc?.role === 'admin')   return <Navigate to="/admin"   replace />
+    if (userDoc?.role === 'teacher') return <Navigate to="/teacher" replace />
+    if (userDoc?.role === 'student') return <Navigate to="/student" replace />
+    return <Navigate to="/" replace />
   }
 
   return children
@@ -186,6 +196,50 @@ export default function AppRouter() {
             element={
               <ProtectedRoute>
                 <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Student routes */}
+          <Route
+            path="/submit"
+            element={
+              <ProtectedRoute>
+                <SubmitProjectPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student"
+            element={
+              <ProtectedRoute>
+                <StudentDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/join-class"
+            element={
+              <ProtectedRoute>
+                <JoinClassPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-submissions"
+            element={
+              <ProtectedRoute>
+                <MySubmissionsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Teacher routes */}
+          <Route
+            path="/teacher"
+            element={
+              <ProtectedRoute>
+                <TeacherDashboardPage />
               </ProtectedRoute>
             }
           />

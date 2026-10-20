@@ -17,8 +17,9 @@ class ImageDetectionResponse(BaseModel):
 
     # TruthScan extras — None when local model is used
     heatmap_url:        Optional[str]  = None
-    analysis_details:   Optional[Any]  = None   # dict with keyIndicators, detailedReasoning etc.
-    warnings:           Optional[list] = None   # watermark, blur, screen_recapture warnings
+    image_url:          Optional[str]  = None
+    analysis_details:   Optional[Any]  = None
+    warnings:           Optional[list] = None
 
 
 class VideoDetectionResponse(BaseModel):

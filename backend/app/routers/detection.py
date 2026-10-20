@@ -96,7 +96,8 @@ async def detect_image(
                 confidence       = ts["confidence"],
                 model            = ts["model"],
                 processing_time_ms = processing_ms,
-                heatmap_url      = ts.get("heatmap_url"),
+                heatmap_url        = ts.get("heatmap_url"),
+                image_url          = ts.get("image_url"),
                 analysis_details = ts.get("analysis_details"),
                 warnings         = ts.get("warnings", []),
             )
@@ -274,6 +275,7 @@ async def detect_image_from_url(
                 model              = ts["model"],
                 processing_time_ms = processing_ms,
                 heatmap_url        = ts.get("heatmap_url"),
+                image_url          = ts.get("image_url"),
                 analysis_details   = ts.get("analysis_details"),
                 warnings           = ts.get("warnings", []),
             )
