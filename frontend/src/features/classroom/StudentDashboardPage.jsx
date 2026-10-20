@@ -1,15 +1,22 @@
 /**
- * StudentDashboardPage — Student home showing enrolled class and submissions.
+ * StudentDashboardPage — Student home showing all enrolled classes and submissions.
+ * Supports multiple class enrollments.
  */
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { getStudentSubmissions } from './classroomService'
+import { getStudentSubmissions, getStudentClasses } from './classroomService'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PageWrapper from '@/components/layout/PageWrapper'
 import Spinner from '@/components/ui/Spinner'
+
+function formatDate(ts) {
+  if (!ts) return '—'
+  const d = ts?.toDate ? ts.toDate() : new Date(ts)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 function StatCard({ label, value, color = 'text-primary' }) {
   return (
@@ -20,36 +27,31 @@ function StatCard({ label, value, color = 'text-primary' }) {
   )
 }
 
-function formatDate(ts) {
-  if (!ts) return '—'
-  const d = ts?.toDate ? ts.toDate() : new Date(ts)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
 export default function StudentDashboardPage() {
-  const { currentUser } = useAuth()
-  const [studentData, setStudentData] = useState(null)
-  const [classData, setClassData]     = useState(null)
-  const [submissions, setSubmissions] = useState([])
-  const [loading, setLoading]         = useState(true)
+  const { currentUser }                       = useAuth()
+  const [studentData, setStudentData]         = useState(null)
+  const [enrolledClasses, setEnrolledClasses] = useState([])
+  const [submissions, setSubmissions]         = useState([])
+  const [loading, setLoading]                 = useState(true)
 
   useEffect(() => {
     if (!currentUser) return
-
     async function loadAll() {
       try {
-        // Load student user doc fresh
         const studentSnap = await getDoc(doc(db, 'users', currentUser.uid))
         const student = studentSnap.exists() ? studentSnap.data() : null
         setStudentData(student)
 
-        // Load class if enrolled
-        if (student?.classId) {
-          const classSnap = await getDoc(doc(db, 'classes', student.classId))
-          if (classSnap.exists()) setClassData(classSnap.data())
+        // Support both classIds[] array and legacy classId string
+        const classIds = student?.classIds?.length
+          ? student.classIds
+          : student?.classId ? [student.classId] : []
+
+        if (classIds.length > 0) {
+          const classes = await getStudentClasses(classIds)
+          setEnrolledClasses(classes)
         }
 
-        // Load submissions
         const subs = await getStudentSubmissions(currentUser.uid)
         setSubmissions(subs)
       } catch (err) {
@@ -58,7 +60,6 @@ export default function StudentDashboardPage() {
         setLoading(false)
       }
     }
-
     loadAll()
   }, [currentUser])
 
@@ -88,32 +89,35 @@ export default function StudentDashboardPage() {
           </h1>
           <p className="text-gray-400 text-sm mt-1">
             {studentData?.studentId && <span>Student ID: {studentData.studentId} · </span>}
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+            })}
           </p>
         </div>
 
-        {/* Enrolled class card */}
-        {classData ? (
-          <div className="bg-primary text-white rounded-xl p-5 mb-8">
-            <p className="text-xs uppercase tracking-widest font-semibold text-white/60 mb-2">
-              Enrolled Class
-            </p>
-            <div className="flex items-start justify-between flex-wrap gap-3">
-              <div>
-                <h2 className="text-xl font-bold">{classData.className}</h2>
-                <p className="text-white/70 text-sm mt-0.5">
-                  {classData.subject}
-                  {classData.section && <span> · Section {classData.section}</span>}
-                  {classData.schoolYear && <span> · {classData.schoolYear}</span>}
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Link to="/submit"
-                  className="bg-white text-primary text-sm font-semibold px-4 py-2
-                             rounded-lg hover:bg-white/90 transition">
-                  + Submit Project
-                </Link>
-              </div>
+        {/* Enrolled classes */}
+        {enrolledClasses.length > 0 ? (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs uppercase tracking-widest font-semibold text-gray-400">
+                Enrolled Classes ({enrolledClasses.length})
+              </p>
+              <Link to="/join-class" className="text-xs text-accent hover:underline font-medium">
+                + Join another class
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {enrolledClasses.map(cls => (
+                <div key={cls.id} className="bg-primary text-white rounded-xl p-4">
+                  <p className="text-xs text-white/60 uppercase tracking-wider mb-1">{cls.subject}</p>
+                  <h3 className="font-bold text-base">{cls.className}</h3>
+                  <p className="text-white/70 text-xs mt-0.5">
+                    {cls.section && `Section ${cls.section}`}
+                    {cls.section && cls.schoolYear && ' · '}
+                    {cls.schoolYear}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         ) : (
@@ -128,10 +132,10 @@ export default function StudentDashboardPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total Submitted"    value={submissions.length} />
-          <StatCard label="Pending Review"     value={pending}  color="text-yellow-500" />
-          <StatCard label="Accepted"           value={accepted} color="text-success" />
-          <StatCard label="Flagged"            value={flagged}  color="text-danger" />
+          <StatCard label="Total Submitted"  value={submissions.length} />
+          <StatCard label="Pending Review"   value={pending}  color="text-yellow-500" />
+          <StatCard label="Accepted"         value={accepted} color="text-success" />
+          <StatCard label="Flagged"          value={flagged}  color="text-danger" />
         </div>
 
         {/* Quick actions */}
@@ -139,8 +143,7 @@ export default function StudentDashboardPage() {
           <Link to="/submit"
             className="bg-white rounded-xl shadow-card p-5 flex items-center gap-4
                        hover:border-accent/30 border border-transparent transition group">
-            <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center
-                            justify-center shrink-0">
+            <div className="w-12 h-12 bg-accent/10 rounded-xl flex items-center justify-center shrink-0">
               <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -155,8 +158,7 @@ export default function StudentDashboardPage() {
           <Link to="/my-submissions"
             className="bg-white rounded-xl shadow-card p-5 flex items-center gap-4
                        hover:border-accent/30 border border-transparent transition group">
-            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center
-                            justify-center shrink-0">
+            <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
               <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -164,7 +166,7 @@ export default function StudentDashboardPage() {
             </div>
             <div>
               <p className="font-semibold text-primary">My Submissions</p>
-              <p className="text-xs text-gray-400 mt-0.5">View all submissions and remarks</p>
+              <p className="text-xs text-gray-400 mt-0.5">View submissions and teacher remarks</p>
             </div>
           </Link>
         </div>
@@ -185,9 +187,7 @@ export default function StudentDashboardPage() {
                              justify-between gap-4 flex-wrap">
                   <div className="min-w-0">
                     <p className="font-medium text-gray-800 truncate">{sub.projectTitle}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {formatDate(sub.submittedAt)}
-                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatDate(sub.submittedAt)}</p>
                   </div>
                   <div>
                     {sub.status === 'reviewed' ? (

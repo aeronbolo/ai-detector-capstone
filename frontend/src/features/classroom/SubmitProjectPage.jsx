@@ -8,7 +8,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { prepareUpload, simulateProgress } from '@/features/home/uploadService'
 import { runImageDetection, runVideoDetection } from '@/features/detection/detectionService'
-import { saveSubmission } from './classroomService'
+import { saveSubmission, getStudentClasses } from './classroomService'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import PageWrapper from '@/components/layout/PageWrapper'
@@ -26,14 +26,28 @@ export default function SubmitProjectPage() {
   const navigate = useNavigate()
 
   // Read fresh student data from Firestore (not stale cache)
-  const [studentData, setStudentData] = useState(null)
-  const [dataLoading, setDataLoading] = useState(true)
+  const [studentData, setStudentData]   = useState(null)
+  const [enrolledClasses, setEnrolledClasses] = useState([])
+  const [selectedClassId, setSelectedClassId] = useState('')
+  const [dataLoading, setDataLoading]   = useState(true)
 
   useEffect(() => {
     if (!currentUser) return
     getDoc(doc(db, 'users', currentUser.uid))
-      .then(snap => {
-        if (snap.exists()) setStudentData(snap.data())
+      .then(async snap => {
+        if (snap.exists()) {
+          const data = snap.data()
+          setStudentData(data)
+          // Load all enrolled classes
+          const classIds = data.classIds?.length
+            ? data.classIds
+            : data.classId ? [data.classId] : []
+          if (classIds.length > 0) {
+            const classes = await getStudentClasses(classIds)
+            setEnrolledClasses(classes)
+            if (classes.length === 1) setSelectedClassId(classes[0].classId)
+          }
+        }
       })
       .catch(console.error)
       .finally(() => setDataLoading(false))
@@ -73,7 +87,10 @@ export default function SubmitProjectPage() {
     e.preventDefault()
     if (!file) return setError('Please select a file to submit.')
     if (!form.projectTitle.trim()) return setError('Please enter a project title.')
-    if (!studentData?.classId) return setError('You are not enrolled in any class. Please join a class first.')
+    if (!selectedClassId) return setError('Please select which class to submit to.')
+
+    const selectedClass = enrolledClasses.find(c => c.classId === selectedClassId)
+    if (!selectedClass) return setError('Selected class not found.')
 
     setError('')
     setStage('uploading')
@@ -112,8 +129,8 @@ export default function SubmitProjectPage() {
       // ── Save submission to Firestore ────────────────────────────────────────
       await saveSubmission({
         studentId:       currentUser.uid,
-        teacherId:       studentData.teacherId || null,
-        classId:         studentData.classId,
+        teacherId:       selectedClass.teacherId || null,
+        classId:         selectedClassId,
         projectTitle:    form.projectTitle,
         subject:         form.subject || '',
         description:     form.description,
@@ -157,7 +174,7 @@ export default function SubmitProjectPage() {
           Upload your project file. Our AI will analyze it and your teacher will review the result.
         </p>
 
-        {!studentData?.classId && (
+        {enrolledClasses.length === 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-yellow-800 font-medium">Not enrolled in any class</p>
             <p className="text-xs text-yellow-700 mt-1">
@@ -168,15 +185,37 @@ export default function SubmitProjectPage() {
           </div>
         )}
 
-        {studentData?.classId && (
-          <div className="bg-accent/5 border border-accent/20 rounded-lg px-4 py-3 mb-6 text-xs text-gray-600">
-            ✓ Enrolled in class · Submission will be sent to your teacher for review
-          </div>
-        )}
-
         {error && <Alert type="error" message={error} onClose={() => setError('')} className="mb-5" />}
 
         <div className="bg-white rounded-lg shadow-card p-6 space-y-5">
+          {/* Class selector */}
+          {enrolledClasses.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-gray-700">
+                Submit to Class <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedClassId}
+                onChange={e => setSelectedClassId(e.target.value)}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm
+                           focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="">Select a class…</option>
+                {enrolledClasses.map(cls => (
+                  <option key={cls.classId} value={cls.classId}>
+                    {cls.className} — {cls.subject}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {enrolledClasses.length === 1 && (
+            <div className="bg-accent/5 border border-accent/20 rounded-lg px-4 py-3 text-xs text-gray-600">
+              ✓ Submitting to: <strong>{enrolledClasses[0].className}</strong> — {enrolledClasses[0].subject}
+            </div>
+          )}
+
           <Input label="Project Title" value={form.projectTitle}
             onChange={set('projectTitle')} placeholder="e.g. Capstone Project Final Submission" required />
           <Input label="Subject" value={form.subject}
@@ -261,7 +300,7 @@ export default function SubmitProjectPage() {
 
           <Button type="button" variant="primary" className="w-full"
             loading={isRunning}
-            disabled={!file || isRunning || !studentData?.classId}
+            disabled={!file || isRunning || enrolledClasses.length === 0 || !selectedClassId}
             onClick={handleSubmit}>
             Submit Project
           </Button>

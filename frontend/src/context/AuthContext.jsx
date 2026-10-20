@@ -59,6 +59,7 @@ export function AuthProvider({ children }) {
       emailVerified:  false,
       studentId:      studentId || null,
       employeeId:     employeeId || null,
+      classIds:       classId ? [classId] : [],
       classId:        classId || null,
       teacherId:      teacherId || null,
     }

@@ -78,7 +78,7 @@ export async function joinClass(classId, studentId, studentInfo = {}) {
   const data = classDoc.data()
   if (data.studentIds?.includes(studentId)) return // already joined
 
-  // Store student name/email on class doc so teacher can see it without reading user docs
+  // Store student name/email on class doc
   const studentsMap = data.students || {}
   studentsMap[studentId] = {
     displayName: studentInfo.displayName || 'Student',
@@ -90,15 +90,31 @@ export async function joinClass(classId, studentId, studentInfo = {}) {
     students: studentsMap,
   })
 
-  // Also update student's user doc
+  // Update student's user doc — push classId to classIds array (multi-class support)
   try {
+    const studentSnap = await getDoc(doc(db, 'users', studentId))
+    const existing = studentSnap.exists() ? (studentSnap.data().classIds || []) : []
+    const newClassIds = existing.includes(classId) ? existing : [...existing, classId]
+
     await updateDoc(doc(db, 'users', studentId), {
-      classId,
-      teacherId: data.teacherId,
+      classIds:  newClassIds,
+      classId:   newClassIds[0],        // keep backward compat
+      teacherId: data.teacherId,        // last joined teacher (fallback)
     })
   } catch (err) {
     console.warn('Could not update student user doc:', err.message)
   }
+}
+
+// Get all classes a student is enrolled in
+export async function getStudentClasses(classIds = []) {
+  if (!classIds.length) return []
+  const classes = await Promise.all(
+    classIds.map(id => getDoc(doc(db, 'classes', id)))
+  )
+  return classes
+    .filter(s => s.exists())
+    .map(s => ({ id: s.id, ...s.data() }))
 }
 
 export async function getClassStudents(classId) {
