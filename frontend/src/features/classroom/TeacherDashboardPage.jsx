@@ -418,6 +418,12 @@ export default function TeacherDashboardPage() {
         {/* Header */}
         <div className="flex items-start justify-between mb-8 flex-wrap gap-4">
           <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-9 h-9 bg-accent rounded-lg flex items-center justify-center shrink-0">
+                <span className="text-white font-extrabold text-sm tracking-tight">AI</span>
+              </div>
+              <span className="text-primary font-bold text-[15px]">AI Detector</span>
+            </div>
             <p className="section-tag mb-1">Teacher Portal</p>
             <h1 className="text-3xl font-bold text-primary">
               Welcome, {currentUser?.displayName?.split(' ')[0] || 'Teacher'}

@@ -168,6 +168,12 @@ export default function SubmitProjectPage() {
   return (
     <PageWrapper>
       <div className="max-w-2xl mx-auto px-4 py-10">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-9 h-9 bg-accent rounded-lg flex items-center justify-center shrink-0">
+            <span className="text-white font-extrabold text-sm tracking-tight">AI</span>
+          </div>
+          <span className="text-primary font-bold text-[15px]">AI Detector</span>
+        </div>
         <p className="section-tag mb-2">Student Portal</p>
         <h1 className="text-3xl font-bold text-primary mb-2">Submit Project</h1>
         <p className="text-gray-500 text-sm mb-8">
