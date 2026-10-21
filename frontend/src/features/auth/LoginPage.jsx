@@ -55,9 +55,31 @@ async function getEmailByEmployeeId(employeeId) {
 
 // Normal tabs — student and teacher only
 const MAIN_TABS = [
-  { key: 'student', label: '🎓 Student', idLabel: 'Student Number', idPlaceholder: 'e.g. 2022-00001' },
-  { key: 'teacher', label: '👨‍🏫 Teacher', idLabel: 'Employee ID',    idPlaceholder: 'e.g. EMP-12345'  },
+  { key: 'student', idLabel: 'Student Number', idPlaceholder: 'e.g. 2022-00001' },
+  { key: 'teacher', idLabel: 'Employee ID',    idPlaceholder: 'e.g. EMP-12345'  },
 ]
+
+// SVG Icons matching system theme
+function StudentIcon({ active }) {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+        d="M12 14l9-5-9-5-9 5 9 5z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+        d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952
+           11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+    </svg>
+  )
+}
+
+function TeacherIcon({ active }) {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  )
+}
 
 export default function LoginPage() {
   const { login, loginWithGoogle, currentUser, userDoc, userDocLoading,
@@ -214,16 +236,23 @@ export default function LoginPage() {
           {/* Tabs — only for main login (not admin page) */}
           {!isAdminPage && (
             <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
-              {MAIN_TABS.map(tab => (
-                <button key={tab.key} type="button"
-                  onClick={() => handleTabChange(tab.key)}
-                  className={`flex-1 py-2 rounded-md text-xs font-semibold transition-all
-                    ${activeTab === tab.key
-                      ? 'bg-white shadow text-primary'
-                      : 'text-gray-500 hover:text-gray-700'}`}>
-                  {tab.label}
-                </button>
-              ))}
+              {MAIN_TABS.map(tab => {
+                const isActive = activeTab === tab.key
+                return (
+                  <button key={tab.key} type="button"
+                    onClick={() => handleTabChange(tab.key)}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md
+                                text-xs font-semibold transition-all
+                      ${isActive
+                        ? 'bg-white shadow text-primary'
+                        : 'text-gray-500 hover:text-gray-700'}`}>
+                    {tab.key === 'student'
+                      ? <StudentIcon active={isActive} />
+                      : <TeacherIcon active={isActive} />}
+                    {tab.key === 'student' ? 'Student' : 'Teacher'}
+                  </button>
+                )
+              })}
             </div>
           )}
 

@@ -199,15 +199,38 @@ export default function RegisterPage() {
               <label className="text-sm font-medium text-gray-700">I am a</label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { value: 'student', label: '🎓 Student' },
-                  { value: 'teacher', label: '👨‍🏫 Teacher' },
+                  {
+                    value: 'student',
+                    label: 'Student',
+                    icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M12 14l9-5-9-5-9 5 9 5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952
+                             11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                      </svg>
+                    )
+                  },
+                  {
+                    value: 'teacher',
+                    label: 'Teacher',
+                    icon: (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )
+                  },
                 ].map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => { setForm(f => ({ ...f, role: opt.value })); setClassCodeError('') }}
-                    className={`py-2.5 rounded-lg text-sm font-medium border transition-all
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg
+                                text-sm font-medium border transition-all
                       ${form.role === opt.value
                         ? 'border-accent bg-accent/10 text-accent'
                         : 'border-gray-300 text-gray-600 hover:border-accent/50'}`}>
+                    {opt.icon}
                     {opt.label}
                   </button>
                 ))}
