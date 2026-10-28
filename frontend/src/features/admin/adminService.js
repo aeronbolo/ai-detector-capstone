@@ -32,30 +32,48 @@ import { db } from '@/lib/firebase'
 
 export async function getDashboardStats() {
   try {
-    const [detectionsSnap, usersSnap] = await Promise.all([
+    const [detectionsSnap, usersSnap, submissionsSnap] = await Promise.all([
       getDocs(collection(db, 'detections')),
       getDocs(collection(db, 'users')),
+      getDocs(collection(db, 'submissions')),
     ])
 
+    // Detections (main detection flow)
     const detections = detectionsSnap.docs
       .map(d => d.data())
-      .filter(d => d.deleted !== true)  // explicitly check === true, not !undefined
+      .filter(d => d.deleted !== true)
 
-    const totalAnalyses = detections.length
-    const totalUsers    = usersSnap.size
+    // Submissions (classroom project submissions)
+    const submissions = submissionsSnap.docs
+      .map(d => d.data())
+      .filter(d => d.deleted !== true)
 
-    const aiGenerated = detections.filter(
+    // Combine for total analyses
+    const totalDetections  = detections.length
+    const totalSubmissions = submissions.length
+    const totalAnalyses    = totalDetections + totalSubmissions
+    const totalUsers       = usersSnap.size
+
+    // AI-generated count across both collections
+    const aiDetections = detections.filter(
       d => d.label === 'AI-Generated' || d.label === 'Digitally Edited'
     ).length
+    const aiSubmissions = submissions.filter(
+      d => d.label === 'AI-Generated' || d.label === 'Digitally Edited'
+    ).length
+    const aiTotal = aiDetections + aiSubmissions
 
     const aiGeneratedRate = totalAnalyses > 0
-      ? Math.round((aiGenerated / totalAnalyses) * 100)
+      ? Math.round((aiTotal / totalAnalyses) * 100)
       : 0
 
-    const avgConfidence = totalAnalyses > 0
-      ? Math.round(
-          detections.reduce((sum, d) => sum + (d.confidence || 0), 0) / totalAnalyses
-        )
+    // Average confidence across both collections
+    const allConfidences = [
+      ...detections.map(d => d.confidence || 0),
+      ...submissions.map(d => d.confidence || 0),
+    ]
+    const avgConfidence = allConfidences.length > 0
+      ? Math.round(allConfidences.reduce((sum, c) => sum + c, 0) / allConfidences.length)
       : 0
 
     return {
@@ -78,21 +96,28 @@ export async function getDashboardStats() {
 // ── All detections (admin view) ───────────────────────────────────────────────
 
 export async function getAllDetections() {
-  const snap = await getDocs(
-    query(collection(db, 'detections'), orderBy('createdAt', 'desc'))
-  )
+  const snap = await getDocs(collection(db, 'detections'))
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() }))
-    .filter(d => d.deleted !== true)  // explicitly check === true, not !undefined
+    .filter(d => d.deleted !== true)
+    .sort((a, b) => {
+      const tA = a.createdAt?.toDate?.() || new Date(0)
+      const tB = b.createdAt?.toDate?.() || new Date(0)
+      return tB - tA
+    })
 }
 
 // ── All users ─────────────────────────────────────────────────────────────────
 
 export async function getAllUsers() {
-  const snap = await getDocs(
-    query(collection(db, 'users'), orderBy('createdAt', 'desc'))
-  )
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  const snap = await getDocs(collection(db, 'users'))
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => {
+      const tA = a.createdAt?.toDate?.() || new Date(0)
+      const tB = b.createdAt?.toDate?.() || new Date(0)
+      return tB - tA
+    })
 }
 
 // ── Mutations ─────────────────────────────────────────────────────────────────

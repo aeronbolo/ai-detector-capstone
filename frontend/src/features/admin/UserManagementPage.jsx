@@ -137,6 +137,10 @@ export default function UserManagementPage() {
   const [removing, setRemoving]     = useState(false)
   const [toast, setToast]           = useState('')
 
+  // ── Search & filter ──────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery]     = useState('')
+  const [roleFilter, setRoleFilter]       = useState('all')
+
   useEffect(() => {
     load()
   }, [])
@@ -153,6 +157,26 @@ export default function UserManagementPage() {
     }
   }
 
+  // Filtered + searched users
+  const filteredUsers = users.filter(u => {
+    // Role filter
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false
+
+    // Search query — matches name, email, studentId, employeeId, department
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      const fields = [
+        u.displayName || '',
+        u.email || '',
+        u.studentId || '',
+        u.employeeId || '',
+        u.department || '',
+      ]
+      return fields.some(f => f.toLowerCase().includes(q))
+    }
+    return true
+  })
+
   function showToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 3000)
@@ -163,7 +187,6 @@ export default function UserManagementPage() {
     try {
       await updateUserRole(uid, role)
       setUsers(prev => prev.map(u => u.uid === uid ? { ...u, role } : u))
-      // Update localStorage cache if it's the current user's role
       localStorage.setItem(`role_${uid}`, role)
       showToast('Role updated successfully.')
       setEditUser(null)
@@ -208,15 +231,52 @@ export default function UserManagementPage() {
           User management
         </h1>
 
+        {/* Search + Filter bar */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          {/* Search input */}
+          <div className="relative flex-1">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"
+              fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by name, email, ID, department…"
+              className="w-full bg-[#162739] border border-white/10 text-white rounded-lg
+                         pl-10 pr-4 py-2.5 text-sm placeholder:text-gray-500
+                         focus:outline-none focus:border-accent transition"
+            />
+          </div>
+
+          {/* Role filter dropdown */}
+          <select
+            value={roleFilter}
+            onChange={e => setRoleFilter(e.target.value)}
+            className="bg-[#162739] border border-white/10 text-white rounded-lg
+                       px-4 py-2.5 text-sm focus:outline-none focus:border-accent
+                       transition cursor-pointer min-w-[160px]"
+          >
+            <option value="all">All Users</option>
+            <option value="student">Students</option>
+            <option value="teacher">Teachers</option>
+            <option value="admin">Admins</option>
+          </select>
+        </div>
+
         {/* Table card */}
         <div className="bg-[#111e2d] rounded-lg border border-white/5 overflow-hidden">
           {loading ? (
             <div className="flex justify-center py-20">
               <Spinner size="xl" />
             </div>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="text-center py-20 text-gray-500">
-              No users found.
+              {users.length === 0
+                ? 'No users found.'
+                : 'No users match your search or filter.'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -233,6 +293,9 @@ export default function UserManagementPage() {
                       Role
                     </th>
                     <th className="text-left text-xs uppercase tracking-widest text-gray-500 font-semibold px-6 py-4">
+                      ID / Department
+                    </th>
+                    <th className="text-left text-xs uppercase tracking-widest text-gray-500 font-semibold px-6 py-4">
                       Joined
                     </th>
                     <th className="text-left text-xs uppercase tracking-widest text-gray-500 font-semibold px-6 py-4">
@@ -241,25 +304,41 @@ export default function UserManagementPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {users.map((user, idx) => (
+                  {filteredUsers.map((user, idx) => (
                     <tr
                       key={user.uid}
                       className={`border-b border-white/5 hover:bg-white/[0.03] transition-colors
                         ${idx % 2 === 0 ? '' : 'bg-white/[0.015]'}`}
                     >
                       {/* Name */}
-                      <td className="px-6 py-4 text-gray-200 font-medium">
+                      <td className="px-6 py-4 text-gray-200 font-medium whitespace-nowrap">
                         {user.displayName || '—'}
                       </td>
 
                       {/* Email */}
-                      <td className="px-6 py-4 text-gray-300">
+                      <td className="px-6 py-4 text-gray-300 whitespace-nowrap">
                         {user.email || '—'}
                       </td>
 
                       {/* Role */}
                       <td className="px-6 py-4">
                         <RoleBadge role={user.role} />
+                      </td>
+
+                      {/* ID / Department */}
+                      <td className="px-6 py-4 text-gray-400">
+                        {user.role === 'student' && (user.studentId || '—')}
+                        {user.role === 'teacher' && (
+                          <span className="whitespace-nowrap">
+                            {user.employeeId || '—'}
+                            {user.department && (
+                              <span className="block text-xs text-gray-500 mt-0.5">
+                                {user.department}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {(!user.role || (user.role !== 'student' && user.role !== 'teacher')) && '—'}
                       </td>
 
                       {/* Joined */}
@@ -300,9 +379,10 @@ export default function UserManagementPage() {
         </div>
 
         {/* User count */}
-        {!loading && users.length > 0 && (
+        {!loading && (
           <p className="text-gray-500 text-xs mt-4">
-            {users.length} user{users.length !== 1 ? 's' : ''} total
+            {filteredUsers.length} of {users.length} user{users.length !== 1 ? 's' : ''}
+            {roleFilter !== 'all' && ` (filtered by: ${roleFilter})`}
           </p>
         )}
       </main>

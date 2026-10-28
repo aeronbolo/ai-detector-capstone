@@ -74,7 +74,7 @@ export default function RegisterPage() {
   const { register, loginWithGoogle } = useAuth()
   const navigate = useNavigate()
 
-  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirm: '', role: 'student', studentId: '', classCode: '', employeeId: '' })
+  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirm: '', role: 'student', studentId: '', classCode: '', employeeId: '', department: '' })
   const [error, setError]                 = useState('')
   const [classCodeError, setClassCodeError] = useState('')
   const [loading, setLoading]             = useState(false)
@@ -97,6 +97,10 @@ export default function RegisterPage() {
     }
     if (form.role === 'teacher' && !form.employeeId?.trim()) {
       return setError('Employee ID is required.')
+    }
+
+    if (form.role === 'teacher' && !form.department?.trim()) {
+      return setError('Department is required.')
     }
 
     // If a student supplied a class code, validate it before creating the account
@@ -123,6 +127,7 @@ export default function RegisterPage() {
         role: form.role,
         studentId:  form.role === 'student' ? form.studentId  : null,
         employeeId: form.role === 'teacher' ? form.employeeId : null,
+        department: form.role === 'teacher' ? form.department : null,
         classId,
         teacherId,
       })
@@ -260,6 +265,29 @@ export default function RegisterPage() {
               <Input label="Employee ID" value={form.employeeId || ''}
                 onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))}
                 placeholder="e.g. EMP-12345" required />
+            )}
+
+            {/* Department — shown for teachers */}
+            {form.role === 'teacher' && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-gray-700">
+                  Department <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={form.department || ''}
+                  onChange={e => setForm(f => ({ ...f, department: e.target.value }))}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm
+                             focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  <option value="">Select department…</option>
+                  {['Computer Science', 'Information Technology', 'Information Systems',
+                    'Computer Engineering', 'Data Science', 'Other'
+                  ].map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
             )}
 
             {/* Password + strength meter */}

@@ -136,6 +136,9 @@ export default function AdminDashboardPage() {
         displayName:    u.displayName,
         email:          u.email,
         role:           u.role,
+        studentId:      u.studentId || '',
+        employeeId:     u.employeeId || '',
+        department:     u.department || '',
         detectionCount: u.detectionCount || 0,
         createdAt:      u.createdAt?.toDate?.() || '',
         disabled:       u.disabled || false,
@@ -281,24 +284,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* ── Quick nav to other admin pages ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link
-            to="/admin/analyses"
-            className="bg-[#162739] border border-white/5 rounded-lg p-5 flex items-center
-                       justify-between hover:border-accent/40 transition group"
-          >
-            <div>
-              <p className="text-white font-semibold">All Analyses</p>
-              <p className="text-gray-400 text-sm mt-0.5">
-                View all users' detection records
-              </p>
-            </div>
-            <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 max-w-2xl">
           <Link
             to="/admin/users"
             className="bg-[#162739] border border-white/5 rounded-lg p-5 flex items-center
@@ -308,23 +294,6 @@ export default function AdminDashboardPage() {
               <p className="text-white font-semibold">User Management</p>
               <p className="text-gray-400 text-sm mt-0.5">
                 Manage roles and remove accounts
-              </p>
-            </div>
-            <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </Link>
-
-          <Link
-            to="/admin/algorithms"
-            className="bg-[#162739] border border-white/5 rounded-lg p-5 flex items-center
-                       justify-between hover:border-accent/40 transition group"
-          >
-            <div>
-              <p className="text-white font-semibold">Algorithm Comparison</p>
-              <p className="text-gray-400 text-sm mt-0.5">
-                Benchmark — our models vs baselines
               </p>
             </div>
             <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition"

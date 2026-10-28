@@ -177,10 +177,10 @@ function SubmissionModal({ sub, student, onClose, onSaveRemark, saving }) {
             </div>
           )}
 
-          {/* System suggestion */}
+          {/* Verdict (auto from AI detection) */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
             <p className="text-xs text-gray-500">
-              <strong>System suggestion:</strong>{' '}
+              <strong>System Suggestion:</strong>{' '}
               <span className={`font-semibold ${
                 sub.systemRemark === 'Accepted' ? 'text-success' :
                 sub.systemRemark === 'Flagged' ? 'text-danger' : 'text-yellow-600'
@@ -188,23 +188,8 @@ function SubmissionModal({ sub, student, onClose, onSaveRemark, saving }) {
             </p>
           </div>
 
-          {/* Teacher verdict */}
+          {/* Teacher note */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-2">Your Verdict</p>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {['Accepted', 'Flagged', 'Needs Review'].map(v => (
-                <button key={v} onClick={() => setRemark(v)}
-                  className={`py-2.5 rounded-xl text-xs font-semibold border transition-all
-                    ${remark === v
-                      ? v === 'Accepted' ? 'bg-success text-white border-success'
-                        : v === 'Flagged' ? 'bg-danger text-white border-danger'
-                        : 'bg-yellow-400 text-white border-yellow-400'
-                      : 'border-gray-300 text-gray-600 hover:border-accent'}`}>
-                  {v === 'Accepted' ? '✓ ' : v === 'Flagged' ? '⚠ ' : '🔍 '}{v}
-                </button>
-              ))}
-            </div>
-
             <label className="text-sm font-medium text-gray-700 block mb-1">
               Note to student (optional)
             </label>
@@ -219,7 +204,7 @@ function SubmissionModal({ sub, student, onClose, onSaveRemark, saving }) {
         <div className="px-6 pb-6 flex gap-3">
           <Button variant="ghost" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button variant="primary" className="flex-1"
-            loading={saving} disabled={!remark}
+            loading={saving}
             onClick={() => onSaveRemark(sub.id, remark, note)}>
             Save Remark
           </Button>
@@ -466,12 +451,40 @@ export default function TeacherDashboardPage() {
                 <Input label="Subject" value={createForm.subject}
                   onChange={e => setCreateForm(p => ({ ...p, subject: e.target.value }))}
                   placeholder="e.g. Capstone Project" required />
-                <Input label="Section" value={createForm.section}
-                  onChange={e => setCreateForm(p => ({ ...p, section: e.target.value }))}
-                  placeholder="e.g. 3A" />
-                <Input label="School Year" value={createForm.schoolYear}
-                  onChange={e => setCreateForm(p => ({ ...p, schoolYear: e.target.value }))}
-                  placeholder="e.g. 2026-2027" />
+
+                {/* Section — dropdown with predefined options */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-gray-700">Section</label>
+                  <select
+                    value={createForm.section}
+                    onChange={e => setCreateForm(p => ({ ...p, section: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">Select section…</option>
+                    {['ITDBA-4A1', 'ITDBA-4B1', 'ITDBA-4B2', 'IT4C', 'IT4C-1',
+                      'IT4C-2', 'IT4D-1', 'IT4D-2', 'IT4E-1', 'IT4E-2'
+                    ].map(sec => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* School Year — dropdown */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-gray-700">School Year</label>
+                  <select
+                    value={createForm.schoolYear}
+                    onChange={e => setCreateForm(p => ({ ...p, schoolYear: e.target.value }))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm
+                               focus:outline-none focus:ring-2 focus:ring-accent"
+                  >
+                    <option value="">Select school year…</option>
+                    {['2024-2025', '2025-2026', '2026-2027', '2027-2028'].map(yr => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="ghost" className="flex-1"
                     onClick={() => setShowCreate(false)}>Cancel</Button>

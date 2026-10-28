@@ -45,7 +45,10 @@ export default function SubmitProjectPage() {
           if (classIds.length > 0) {
             const classes = await getStudentClasses(classIds)
             setEnrolledClasses(classes)
-            if (classes.length === 1) setSelectedClassId(classes[0].classId)
+            if (classes.length === 1) {
+              setSelectedClassId(classes[0].classId)
+              setForm(f => ({ ...f, subject: classes[0].subject || '' }))
+            }
           }
         }
       })
@@ -207,7 +210,11 @@ export default function SubmitProjectPage() {
               </label>
               <select
                 value={selectedClassId}
-                onChange={e => setSelectedClassId(e.target.value)}
+                onChange={e => {
+                  setSelectedClassId(e.target.value)
+                  const cls = enrolledClasses.find(c => c.classId === e.target.value)
+                  if (cls) setForm(f => ({ ...f, subject: cls.subject || '' }))
+                }}
                 required
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm
                            focus:outline-none focus:ring-2 focus:ring-accent"
@@ -229,8 +236,17 @@ export default function SubmitProjectPage() {
 
           <Input label="Project Title" value={form.projectTitle}
             onChange={set('projectTitle')} placeholder="e.g. Capstone Project Final Submission" required />
-          <Input label="Subject" value={form.subject}
-            onChange={set('subject')} placeholder="e.g. Computer Science Capstone" />
+
+          {/* Subject — auto-filled from selected class, read-only */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-gray-700">
+              Subject <span className="text-xs text-gray-400 font-normal">(auto-filled from class)</span>
+            </label>
+            <div className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm
+                           bg-gray-50 text-gray-600 min-h-[42px] flex items-center">
+              {form.subject || <span className="text-gray-400">Select a class first…</span>}
+            </div>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium text-gray-700">Description (optional)</label>
             <textarea

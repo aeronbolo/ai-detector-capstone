@@ -79,7 +79,7 @@ export default function AdminNavbar({ title = 'Admin dashboard' }) {
     setLoggingOut(true)
     try {
       await logout()
-      navigate('/login')
+      navigate('/login/admin')
     } catch {
       setLoggingOut(false)
     }
@@ -112,17 +112,9 @@ export default function AdminNavbar({ title = 'Admin dashboard' }) {
                 className="text-gray-300 hover:text-white text-sm transition-colors">
                 Dashboard
               </Link>
-              <Link to="/admin/analyses"
-                className="text-gray-300 hover:text-white text-sm transition-colors">
-                All Analyses
-              </Link>
               <Link to="/admin/users"
                 className="text-gray-300 hover:text-white text-sm transition-colors">
                 Users
-              </Link>
-              <Link to="/admin/algorithms"
-                className="text-gray-300 hover:text-white text-sm transition-colors">
-                Algorithms
               </Link>
               <Link to="/admin/train"
                 className="text-gray-300 hover:text-white text-sm transition-colors">

@@ -23,9 +23,7 @@ const ReportsPage = lazy(() => import('@/features/reports/ReportsPage'))
 
 // Admin pages
 const AdminDashboardPage       = lazy(() => import('@/features/admin/AdminDashboardPage'))
-const AllAnalysesPage          = lazy(() => import('@/features/admin/AllAnalysesPage'))
 const UserManagementPage       = lazy(() => import('@/features/admin/UserManagementPage'))
-const AlgorithmComparisonPage  = lazy(() => import('@/features/admin/AlgorithmComparisonPage'))
 const TrainModelPage           = lazy(() => import('@/features/admin/TrainModelPage'))
 
 // Classroom pages
@@ -79,7 +77,7 @@ function AdminRoute({ children }) {
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login/admin" replace />
   }
 
   // Block unverified email users — new accounts only (registered after Nov 2026)
@@ -147,11 +145,7 @@ export default function AppRouter() {
           {/* Auth routes (public only) */}
           <Route
             path="/login"
-            element={
-              <PublicOnlyRoute>
-                <LoginPage />
-              </PublicOnlyRoute>
-            }
+            element={<Navigate to="/login/student" replace />}
           />
           <Route
             path="/login/:role"
@@ -262,26 +256,10 @@ export default function AppRouter() {
             }
           />
           <Route
-            path="/admin/analyses"
-            element={
-              <AdminRoute>
-                <AllAnalysesPage />
-              </AdminRoute>
-            }
-          />
-          <Route
             path="/admin/users"
             element={
               <AdminRoute>
                 <UserManagementPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="/admin/algorithms"
-            element={
-              <AdminRoute>
-                <AlgorithmComparisonPage />
               </AdminRoute>
             }
           />

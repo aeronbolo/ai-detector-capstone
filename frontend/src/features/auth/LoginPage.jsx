@@ -1,6 +1,9 @@
 /**
- * LoginPage — Role-based login with two tabs (Student / Teacher).
- * Admin login is at /login/admin (hidden URL).
+ * LoginPage — Role-based login with separate pages.
+ * /login/student  → Student login (Student Number + Password)
+ * /login/teacher  → Teacher login (Employee ID + Password)
+ * /login/admin    → Admin login (Email + Password) [hidden URL]
+ * /login          → Redirects to /login/student
  */
 
 import { useState, useEffect } from 'react'
@@ -53,29 +56,23 @@ async function getEmailByEmployeeId(employeeId) {
   }
 }
 
-// Normal tabs — student and teacher only
-const MAIN_TABS = [
-  { key: 'student', idLabel: 'Student Number', idPlaceholder: 'e.g. 2022-00001' },
-  { key: 'teacher', idLabel: 'Employee ID',    idPlaceholder: 'e.g. EMP-12345'  },
-]
-
-// SVG Icons matching system theme
-function StudentIcon({ active }) {
+// SVG Icons
+function StudentIcon() {
   return (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
         d="M12 14l9-5-9-5-9 5 9 5z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
         d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952
            11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
     </svg>
   )
 }
 
-function TeacherIcon({ active }) {
+function TeacherIcon() {
   return (
     <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2 : 1.5}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
   )
@@ -85,11 +82,13 @@ export default function LoginPage() {
   const { login, loginWithGoogle, currentUser, userDoc, userDocLoading,
           resendVerificationEmail } = useAuth()
   const navigate   = useNavigate()
-  const { role: urlRole } = useParams()   // 'admin' if at /login/admin
+  const { role: urlRole } = useParams()
 
-  const isAdminPage = urlRole === 'admin'
+  // Determine login type from URL — default to 'student'
+  const loginType = urlRole === 'admin' ? 'admin'
+                  : urlRole === 'teacher' ? 'teacher'
+                  : 'student'
 
-  const [activeTab, setActiveTab]             = useState(isAdminPage ? 'admin' : 'student')
   const [identifier, setIdentifier]           = useState('')
   const [password, setPassword]               = useState('')
   const [error, setError]                     = useState('')
@@ -121,15 +120,6 @@ export default function LoginPage() {
     setPendingRedirect(false)
   }, [pendingRedirect, userDocLoading, userDoc, currentUser, navigate])
 
-  function handleTabChange(tab) {
-    setActiveTab(tab)
-    setIdentifier('')
-    setPassword('')
-    setError('')
-    setUnverified(false)
-    setResendSent(false)
-  }
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -139,7 +129,7 @@ export default function LoginPage() {
     try {
       let emailToUse = identifier.trim()
 
-      if (activeTab === 'student') {
+      if (loginType === 'student') {
         const found = await getEmailByStudentId(identifier)
         if (!found) {
           setError('No student account found with that student number.')
@@ -147,7 +137,7 @@ export default function LoginPage() {
           return
         }
         emailToUse = found
-      } else if (activeTab === 'teacher') {
+      } else if (loginType === 'teacher') {
         const found = await getEmailByEmployeeId(identifier)
         if (!found) {
           setError('No teacher account found with that employee ID.')
@@ -200,6 +190,37 @@ export default function LoginPage() {
     }
   }
 
+  // ── Config per login type ──────────────────────────────────────────────────
+  const config = {
+    student: {
+      icon: <StudentIcon />,
+      label: 'Student Number',
+      idPlaceholder: 'e.g. 2022-00001',
+      idType: 'text',
+      idAutoComplete: 'username',
+      buttonLabel: 'Sign in as Student',
+      subtitle: 'Student Login',
+    },
+    teacher: {
+      icon: <TeacherIcon />,
+      label: 'Employee ID',
+      idPlaceholder: 'e.g. EMP-12345',
+      idType: 'text',
+      idAutoComplete: 'username',
+      buttonLabel: 'Sign in as Teacher',
+      subtitle: 'Teacher Login',
+    },
+    admin: {
+      label: 'Email Address',
+      idPlaceholder: 'admin@example.com',
+      idType: 'email',
+      idAutoComplete: 'email',
+      buttonLabel: 'Sign in as Administrator',
+      subtitle: 'Administrator Access',
+    },
+  }
+  const c = config[loginType]
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -225,39 +246,14 @@ export default function LoginPage() {
             </div>
             <span className="text-2xl font-bold text-primary">AI Detector</span>
           </div>
-          <p className="text-gray-500 text-sm">
-            {isAdminPage ? 'Administrator Access' : 'Sign in to your account'}
-          </p>
+          <p className="text-gray-500 text-sm">{c.subtitle}</p>
         </div>
 
         {/* Card */}
         <div className="bg-white rounded-lg shadow-card p-8">
 
-          {/* Tabs — only for main login (not admin page) */}
-          {!isAdminPage && (
-            <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6">
-              {MAIN_TABS.map(tab => {
-                const isActive = activeTab === tab.key
-                return (
-                  <button key={tab.key} type="button"
-                    onClick={() => handleTabChange(tab.key)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md
-                                text-xs font-semibold transition-all
-                      ${isActive
-                        ? 'bg-white shadow text-primary'
-                        : 'text-gray-500 hover:text-gray-700'}`}>
-                    {tab.key === 'student'
-                      ? <StudentIcon active={isActive} />
-                      : <TeacherIcon active={isActive} />}
-                    {tab.key === 'student' ? 'Student' : 'Teacher'}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
           {/* Admin page header */}
-          {isAdminPage && (
+          {loginType === 'admin' && (
             <div className="flex items-center gap-3 mb-6 p-3 bg-primary/5 border
                             border-primary/10 rounded-lg">
               <span className="text-2xl">🔑</span>
@@ -295,19 +291,13 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label={
-                activeTab === 'student' ? 'Student Number' :
-                activeTab === 'teacher' ? 'Employee ID' : 'Email Address'
-              }
-              type={activeTab === 'admin' || isAdminPage ? 'email' : 'text'}
+              label={c.label}
+              type={c.idType}
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
-              placeholder={
-                activeTab === 'student' ? 'e.g. 2022-00001' :
-                activeTab === 'teacher' ? 'e.g. EMP-12345' : 'admin@example.com'
-              }
+              placeholder={c.idPlaceholder}
               required
-              autoComplete={activeTab === 'admin' || isAdminPage ? 'email' : 'username'}
+              autoComplete={c.idAutoComplete}
             />
             <div>
               <Input
@@ -328,14 +318,12 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" variant="primary" className="w-full" loading={loading}>
-              {isAdminPage
-                ? 'Sign in as Administrator'
-                : `Sign in as ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+              {c.buttonLabel}
             </Button>
           </form>
 
           {/* Google — admin page only */}
-          {isAdminPage && (
+          {loginType === 'admin' && (
             <>
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
@@ -368,23 +356,40 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Back to main login from admin page */}
-        {isAdminPage ? (
+        {/* Bottom links — different per login type */}
+        {loginType === 'admin' ? (
           <p className="text-center text-sm text-gray-400 mt-6">
-            <Link to="/login" className="hover:text-gray-600 transition-colors">
+            <Link to="/login/student" className="hover:text-gray-600 transition-colors">
               ← Back to main login
             </Link>
           </p>
         ) : (
-          <p className="text-center text-sm text-gray-500 mt-6">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-accent font-medium hover:text-accent-dark transition-colors">
-              Sign up
-            </Link>
-          </p>
+          <div className="text-center mt-6 space-y-2">
+            <p className="text-sm text-gray-500">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-accent font-medium hover:text-accent-dark transition-colors">
+                Sign up
+              </Link>
+            </p>
+            {loginType === 'student' && (
+              <p className="text-xs text-gray-400">
+                Faculty Login{' '}
+                <Link to="/login/teacher" className="text-accent font-medium hover:text-accent-dark transition-colors">
+                  Login here
+                </Link>
+              </p>
+            )}
+            {loginType === 'teacher' && (
+              <p className="text-xs text-gray-400">
+                Are you a student?{' '}
+                <Link to="/login/student" className="text-accent font-medium hover:text-accent-dark transition-colors">
+                  Login here
+                </Link>
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>
   )
 }
-
